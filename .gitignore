@@ -80,3 +80,10 @@ docker-data/
 ############################
 tmp/
 temp/
+
+############################
+# Project Blueprints
+############################
+bank-backend/blueprint.md
+bank-frontend/blueprint.md
+
