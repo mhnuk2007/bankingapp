@@ -6,7 +6,7 @@ This is a comprehensive, full-stack enterprise banking solution. It features a r
 
 ```
 banking-app/
-├── bank-backend/         # Spring Boot 3.2 / Java 17 API
+├── bank-backend/         # Spring Boot 4.0.2 / Java 17 API
 ├── bank-frontend/        # Angular 21 / Tailwind CSS Client
 ├── docker/               # Docker Compose and Infrastructure
 └── README.md             # Project Documentation
