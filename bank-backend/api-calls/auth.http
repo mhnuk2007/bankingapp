@@ -1,0 +1,48 @@
+### =========================
+### Register User
+### =========================
+POST http://localhost:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "username": "john",
+  "email": "john@example.com",
+  "password": "password123"
+}
+
+### =========================
+### Login (Password Auth)
+### This triggers MFA (OTT)
+### =========================
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "john",
+  "password": "password123"
+}
+
+### =========================
+### Submit OTP (One-Time Token)
+### Token printed in console
+### =========================
+POST http://localhost:8080/login/ott
+Content-Type: application/x-www-form-urlencoded
+
+token=99541
+
+###
+POST http://localhost:8080/api/v1/auth/verify-otp
+Content-Type: application/json
+
+{
+"sessionId": "ed17ab49-1bf7-4ab8-bea2-5f0850bcd0f2",
+"otp": "147754"
+}
+
+
+### =========================
+### Access Secured Endpoint
+### (After MFA success)
+### =========================
+GET http://localhost:8080/

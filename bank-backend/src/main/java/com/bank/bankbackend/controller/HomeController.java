@@ -15,6 +15,12 @@ public class HomeController {
         return "Hello Admin";
     }
 
+    @GetMapping("/customer")
+    public String customer(){
+        return "Hello Customer";
+    }
+
+
     @GetMapping("/ott/sent")
     public  String ottSent(){
         return "OTP sent";
