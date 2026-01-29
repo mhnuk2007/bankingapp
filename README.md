@@ -15,7 +15,7 @@ banking-app/
 ## 🚀 Technology Stack
 
 ### Backend (bank-backend)
-*   **Framework**: Spring Boot 3.2 / Spring Framework 6.1
+*   **Framework**: Spring Boot 4.0.2 / Spring Framework 7.0.3
 *   **Language**: Java 17 (LTS)
 *   **Database**: PostgreSQL 15+ (Primary), Redis (Cache)
 *   **Security**: Spring Security 6.x, JWT (JJWT 0.12.5), 2FA
