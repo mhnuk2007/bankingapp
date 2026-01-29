@@ -1,4 +1,4 @@
-package com.bank.bankbackend.security.config;
+package com.bank.bankbackend.security.mfa;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
