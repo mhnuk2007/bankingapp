@@ -20,12 +20,12 @@ public class SecurityConfig {
 
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/otp/sent").permitAll()
+                        .requestMatchers("/", "/ott/sent").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .formLogin(withDefaults())
-                .logout(withDefaults());
+                .oneTimeTokenLogin(withDefaults());
 
         return http.build();
     }

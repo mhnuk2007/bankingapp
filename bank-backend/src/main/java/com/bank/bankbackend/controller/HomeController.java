@@ -15,4 +15,9 @@ public class HomeController {
         return "Hello Admin";
     }
 
+    @GetMapping("/ott/sent")
+    public  String ottSent(){
+        return "OTP sent";
+    }
+
 }
