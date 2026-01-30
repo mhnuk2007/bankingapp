@@ -6,7 +6,7 @@ This is a comprehensive, full-stack enterprise banking solution. It features a r
 
 ```
 banking-app/
-├── bank-backend/         # Spring Boot 4.0.2 / Java 17 API
+├── bank-backend/         # Spring Boot 3.2 / Java 17 API
 ├── bank-frontend/        # Angular 21 / Tailwind CSS Client
 ├── docker/               # Docker Compose and Infrastructure
 └── README.md             # Project Documentation
@@ -15,7 +15,7 @@ banking-app/
 ## 🚀 Technology Stack
 
 ### Backend (bank-backend)
-*   **Framework**: Spring Boot 4.0.2 / Spring Framework 7.0.3
+*   **Framework**: Spring Boot 3.2 / Spring Framework 6.1
 *   **Language**: Java 17 (LTS)
 *   **Database**: PostgreSQL 15+ (Primary), Redis (Cache)
 *   **Security**: Spring Security 6.x, JWT (JJWT 0.12.5), 2FA
@@ -117,11 +117,7 @@ npm install
 ```
 
 Start the development server:
-```bash
 ng serve
-```
-
-Open browser at `http://localhost:4200/`.
 
 ## ⚙️ Configuration
 The backend application is configured via `application.yml`. Key environment variables you may need to set in production:
