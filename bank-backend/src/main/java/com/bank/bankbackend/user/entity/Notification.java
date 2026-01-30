@@ -27,7 +27,9 @@ public class Notification {
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime readAt;
 
-    public Notification(){};
+
+
+    public Notification(Long userId, String title, String message, String type){};
 
     public Notification(Long id, Long userId, String title, String message, String type, boolean isRead, LocalDateTime createdAt, LocalDateTime readAt) {
         this.id = id;
@@ -38,6 +40,10 @@ public class Notification {
         this.isRead = isRead;
         this.createdAt = createdAt;
         this.readAt = readAt;
+    }
+
+    public Notification() {
+
     }
 
     public Long getId() {
