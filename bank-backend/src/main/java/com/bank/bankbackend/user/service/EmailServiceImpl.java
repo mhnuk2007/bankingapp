@@ -106,4 +106,53 @@ public class EmailServiceImpl implements EmailService {
 
         mailSender.send(message);
     }
+
+    @Override
+    public void sendPasswordChangedEmail(String email) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(email);
+        message.setSubject("Your Password Has Been Changed");
+        message.setText(
+                "Hello,\n\n" +
+                        "This is a confirmation that your account password has been successfully changed.\n\n" +
+                        "If you did not perform this action, please contact our support immediately.\n\n" +
+                        "Best regards,\n" +
+                        "Bank Security Team"
+        );
+        mailSender.send(message);
+    }
+
+    @Override
+    public void sendMfaEnabledEmail(String email) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(email);
+        message.setSubject("MFA Enabled on Your Account");
+        message.setText(
+                "Hello,\n\n" +
+                        "Multi-Factor Authentication (MFA) has been enabled on your account.\n\n" +
+                        "This adds an extra layer of security to your account.\n\n" +
+                        "If you did not perform this action, please contact our support immediately.\n\n" +
+                        "Best regards,\n" +
+                        "Bank Security Team"
+        );
+        mailSender.send(message);
+    }
+
+    @Override
+    public void sendMfaDisabledEmail(String email) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(email);
+        message.setSubject("MFA Disabled on Your Account");
+        message.setText(
+                "Hello,\n\n" +
+                        "Multi-Factor Authentication (MFA) has been disabled on your account.\n\n" +
+                        "If you did not perform this action, please contact our support immediately.\n\n" +
+                        "Best regards,\n" +
+                        "Bank Security Team"
+        );
+        mailSender.send(message);
+    }
 }

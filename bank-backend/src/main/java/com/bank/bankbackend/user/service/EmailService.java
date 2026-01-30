@@ -24,4 +24,10 @@ public interface EmailService {
      * Send welcome email
      */
     void sendWelcomeEmail(String to, String username);
+
+    void sendPasswordChangedEmail(String email);
+
+    void sendMfaEnabledEmail(String email);
+
+    void sendMfaDisabledEmail(String email);
 }

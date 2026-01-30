@@ -1,4 +1,3 @@
-// UserResponse.java
 package com.bank.bankbackend.user.dto;
 
 import java.time.LocalDate;
@@ -8,6 +7,20 @@ public record UserResponse(
         Long id,
         String username,
         String email,
+        String firstName,
+        String lastName,
+        String phoneNumber,
+        LocalDate dateOfBirth,
+        String address,
+        String city,
+        String state,
+        String country,
+        String postalCode,
         String role,
-        Boolean isEnabled
+        boolean active,
+        boolean emailVerified,
+        boolean mfaEnabled,
+        String avatarUrl,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {}
