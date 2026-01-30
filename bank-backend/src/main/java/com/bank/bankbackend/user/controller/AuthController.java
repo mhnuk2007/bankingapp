@@ -84,6 +84,91 @@ public class AuthController {
     }
 
     /**
+     * Logout
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<MessageResponse> logout(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody(required = false) RefreshTokenRequest request
+    ) {
+        String accessToken = null;
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            accessToken = authHeader.substring(7);
+        }
+
+        String refreshToken = request != null ? request.refreshToken() : null;
+
+        authenticationService.logout(refreshToken, accessToken);
+
+        return ResponseEntity.ok(new MessageResponse("Logged out successfully"));
+    }
+
+    /**
+     * Request password reset - Forgot password
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<MessageResponse> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+        try {
+            authenticationService.sendPasswordResetToken(request.email());
+            return ResponseEntity.ok(new MessageResponse("Password reset link sent to your email"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse(e.getMessage()));
+        }
+    }
+
+    /**
+     * Reset password using reset token
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<MessageResponse> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request
+    ) {
+        try {
+            authenticationService.resetPassword(request.resetToken(), request.newPassword());
+            return ResponseEntity.ok(new MessageResponse("Password has been reset successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse(e.getMessage()));
+        }
+    }
+
+    /**
+     * Verify email with token
+     */
+    @PostMapping("/verify-email")
+    public ResponseEntity<MessageResponse> verifyEmail(
+            @Valid @RequestBody VerifyEmailRequest request
+    ) {
+        try {
+            authenticationService.verifyEmailToken(request.verificationToken());
+            return ResponseEntity.ok(new MessageResponse("Email verified successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse(e.getMessage()));
+        }
+    }
+
+    /**
+     * Resend verification email
+     */
+    @PostMapping("/resend-verification")
+    public ResponseEntity<MessageResponse> resendVerification(
+            @Valid @RequestBody ResendVerificationRequest request
+    ) {
+        try {
+            authenticationService.resendVerificationEmail(request.email());
+            return ResponseEntity.ok(new MessageResponse("Verification email sent successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse(e.getMessage()));
+        }
+    }
+
+    /**
      * Health check endpoint
      */
     @GetMapping("/health")

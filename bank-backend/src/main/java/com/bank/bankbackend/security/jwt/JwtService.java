@@ -2,7 +2,6 @@ package com.bank.bankbackend.security.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,23 +9,29 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
-import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
+    @Value("${jwt.secret}")
     private String secretKey;
 
-    @Value("${jwt.expiration:86400000}") // 24 hours in milliseconds
+    @Value("${jwt.expiration:900000}") // 15 minutes in milliseconds (fixed: was 900, should be 900000)
     private long jwtExpiration;
 
     @Value("${jwt.refresh-expiration:604800000}") // 7 days in milliseconds
     private long refreshExpiration;
+
+    private final TokenBlacklistService blacklistService;
+
+    public JwtService(TokenBlacklistService blacklistService) {
+        this.blacklistService = blacklistService;
+    }
 
     /**
      * Extract username from JWT token
@@ -47,13 +52,16 @@ public class JwtService {
      * Generate access token for user
      */
     public String generateToken(UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("type", "ACCESS");
+        return buildToken(claims, userDetails, jwtExpiration);
     }
 
     /**
      * Generate token with extra claims
      */
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
+        extraClaims.put("type", "ACCESS");
         return buildToken(extraClaims, userDetails, jwtExpiration);
     }
 
@@ -61,7 +69,9 @@ public class JwtService {
      * Generate refresh token
      */
     public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(new HashMap<>(), userDetails, refreshExpiration);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("type", "REFRESH");
+        return buildToken(claims, userDetails, refreshExpiration);
     }
 
     /**
@@ -72,11 +82,14 @@ public class JwtService {
             UserDetails userDetails,
             long expiration
     ) {
-        return Jwts
-                .builder()
+        extraClaims.put("jti", UUID.randomUUID().toString());
+
+        return Jwts.builder()
                 .claims(extraClaims)
+                .issuer("bank-backend")
+                .audience().add("bank-frontend").and()
                 .subject(userDetails.getUsername())
-                .issuedAt(new Date(System.currentTimeMillis()))
+                .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignInKey(), Jwts.SIG.HS256)
                 .compact();
@@ -120,7 +133,26 @@ public class JwtService {
      * Get signing key for JWT
      */
     private SecretKey getSignInKey() {
-        return Keys.hmacShaKeyFor(secretKey.getBytes());
+        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
+    /**
+     * Invalidate token
+     */
+    public void invalidateToken(String token) {
+        blacklistService.blacklistToken(token);
+    }
+
+    /**
+     * Check if token is a refresh token
+     */
+    public boolean isRefreshToken(String token) {
+        try {
+            String type = extractClaim(token, claims -> claims.get("type", String.class));
+            return "REFRESH".equals(type);
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

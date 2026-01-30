@@ -28,6 +28,9 @@ public class User {
     @Column(nullable = false)
     private boolean mfaEnabled = true;
 
+    @Column(nullable = false)
+    private boolean emailVerified = false;
+
     // Constructors
     public User() {
     }
@@ -95,6 +98,14 @@ public class User {
         this.mfaEnabled = mfaEnabled;
     }
 
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
+    }
+
     @Override
     public String toString() {
         return "User{" +
@@ -104,6 +115,7 @@ public class User {
                 ", enabled=" + enabled +
                 ", role='" + role + '\'' +
                 ", mfaEnabled=" + mfaEnabled +
+                ", emailVerified=" + emailVerified +
                 '}';
     }
 }
