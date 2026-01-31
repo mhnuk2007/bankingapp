@@ -8,8 +8,13 @@ import com.bank.bankbackend.account.repository.BalanceHistoryRepository;
 import com.bank.bankbackend.security.userdetails.UserDetailsImpl;
 import com.bank.bankbackend.user.entity.Notification;
 import com.bank.bankbackend.user.entity.User;
+import com.bank.bankbackend.user.entity.UserActivity;
 import com.bank.bankbackend.user.repository.NotificationRepository;
+import com.bank.bankbackend.user.repository.UserActivityRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Page;
@@ -31,16 +36,17 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final BalanceHistoryRepository balanceHistoryRepository;
     private final NotificationRepository notificationRepository;
+    private final UserActivityRepository userActivityRepository;
 
     // Account configuration
     private static final String ACCOUNT_PREFIX = "ACC";
     private static final Random random = new Random();
-    
+
     // Account types
     private static final List<String> ACCOUNT_TYPES = Arrays.asList(
             "SAVINGS", "CHECKING", "BUSINESS", "STUDENT", "INVESTMENT"
     );
-    
+
     // Account statuses
     private static final List<String> ACCOUNT_STATUSES = Arrays.asList(
             "ACTIVE", "FROZEN", "CLOSED", "PENDING"
@@ -49,11 +55,13 @@ public class AccountService {
     public AccountService(
             AccountRepository accountRepository,
             BalanceHistoryRepository balanceHistoryRepository,
-            NotificationRepository notificationRepository
+            NotificationRepository notificationRepository,
+            UserActivityRepository userActivityRepository
     ) {
         this.accountRepository = accountRepository;
         this.balanceHistoryRepository = balanceHistoryRepository;
         this.notificationRepository = notificationRepository;
+        this.userActivityRepository = userActivityRepository;
     }
 
     /**
@@ -143,10 +151,10 @@ public class AccountService {
 
         // Create initial balance history
         createBalanceHistory(
-                account, 
-                BigDecimal.ZERO, 
-                BigDecimal.ZERO, 
-                "ACCOUNT_CREATED", 
+                account,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                "ACCOUNT_CREATED",
                 "Account created"
         );
 
@@ -157,6 +165,9 @@ public class AccountService {
                 "Your " + request.accountType() + " account has been created successfully. Account number: " + accountNumber,
                 "SUCCESS"
         );
+
+        // Log activity
+        logActivity(user, "ACCOUNT_CREATED", "Created " + request.accountType() + " account: " + accountNumber);
 
         return mapToAccountResponse(account);
     }
@@ -183,6 +194,9 @@ public class AccountService {
 
         account.setUpdatedAt(LocalDateTime.now());
         accountRepository.save(account);
+
+        // Log activity
+        logActivity(user, "ACCOUNT_UPDATED", "Updated account: " + account.getAccountNumber());
 
         return mapToAccountResponse(account);
     }
@@ -219,10 +233,10 @@ public class AccountService {
 
         // Create balance history
         createBalanceHistory(
-                account, 
-                account.getBalance(), 
-                account.getBalance(), 
-                "ACCOUNT_CLOSED", 
+                account,
+                account.getBalance(),
+                account.getBalance(),
+                "ACCOUNT_CLOSED",
                 "Account closed"
         );
 
@@ -233,6 +247,9 @@ public class AccountService {
                 "Your account " + account.getAccountNumber() + " has been closed successfully.",
                 "INFO"
         );
+
+        // Log activity
+        logActivity(user, "ACCOUNT_CLOSED", "Closed account: " + account.getAccountNumber());
     }
 
     /**
@@ -317,12 +334,12 @@ public class AccountService {
 
         BigDecimal openingBalance = getOpeningBalance(accountId, startDateTime);
         BigDecimal closingBalance = account.getBalance();
-        
+
         BigDecimal totalCredits = history.stream()
                 .filter(h -> h.getNewBalance().compareTo(h.getOldBalance()) > 0)
                 .map(h -> h.getNewBalance().subtract(h.getOldBalance()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
+
         BigDecimal totalDebits = history.stream()
                 .filter(h -> h.getNewBalance().compareTo(h.getOldBalance()) < 0)
                 .map(h -> h.getOldBalance().subtract(h.getNewBalance()))
@@ -348,8 +365,8 @@ public class AccountService {
     public byte[] downloadStatement(@NotNull Long accountId, DownloadStatementRequest request) {
         // Get statement data
         StatementResponse statement = getAccountStatement(
-                accountId, 
-                request.startDate(), 
+                accountId,
+                request.startDate(),
                 request.endDate()
         );
 
@@ -379,28 +396,28 @@ public class AccountService {
 
         // Calculate summary data (last 30 days)
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-        
+
         List<BalanceHistory> recentHistory = balanceHistoryRepository
                 .findByAccountIdAndRecordedAtAfter(accountId, thirtyDaysAgo);
 
         int transactionCount = recentHistory.size();
-        
+
         BigDecimal totalCredits = recentHistory.stream()
                 .filter(h -> h.getNewBalance().compareTo(h.getOldBalance()) > 0)
                 .map(h -> h.getNewBalance().subtract(h.getOldBalance()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
+
         BigDecimal totalDebits = recentHistory.stream()
                 .filter(h -> h.getNewBalance().compareTo(h.getOldBalance()) < 0)
                 .map(h -> h.getOldBalance().subtract(h.getNewBalance()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal averageBalance = recentHistory.isEmpty() 
+        BigDecimal averageBalance = recentHistory.isEmpty()
                 ? account.getBalance()
                 : recentHistory.stream()
-                    .map(BalanceHistory::getNewBalance)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add)
-                    .divide(BigDecimal.valueOf(recentHistory.size()), 2, BigDecimal.ROUND_HALF_UP);
+                .map(BalanceHistory::getNewBalance)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(recentHistory.size()), 2, BigDecimal.ROUND_HALF_UP);
 
         return new AccountSummaryResponse(
                 account.getId(),
@@ -454,6 +471,9 @@ public class AccountService {
                 "Account " + account.getAccountNumber() + " has been set as your primary account.",
                 "INFO"
         );
+
+        // Log activity
+        logActivity(user, "PRIMARY_ACCOUNT_SET", "Set account as primary: " + account.getAccountNumber());
     }
 
     /**
@@ -513,10 +533,10 @@ public class AccountService {
 
         // Create balance history
         createBalanceHistory(
-                account, 
-                account.getBalance(), 
-                account.getBalance(), 
-                "ACCOUNT_FROZEN", 
+                account,
+                account.getBalance(),
+                account.getBalance(),
+                "ACCOUNT_FROZEN",
                 "Account frozen: " + reason
         );
 
@@ -527,6 +547,9 @@ public class AccountService {
                 "Your account " + account.getAccountNumber() + " has been frozen. Reason: " + reason,
                 "WARNING"
         );
+
+        // Log activity
+        logActivity(user, "ACCOUNT_FROZEN", "Frozen account: " + account.getAccountNumber() + " - Reason: " + reason);
     }
 
     /**
@@ -554,10 +577,10 @@ public class AccountService {
 
         // Create balance history
         createBalanceHistory(
-                account, 
-                account.getBalance(), 
-                account.getBalance(), 
-                "ACCOUNT_UNFROZEN", 
+                account,
+                account.getBalance(),
+                account.getBalance(),
+                "ACCOUNT_UNFROZEN",
                 "Account unfrozen"
         );
 
@@ -568,6 +591,9 @@ public class AccountService {
                 "Your account " + account.getAccountNumber() + " has been unfrozen and is now active.",
                 "SUCCESS"
         );
+
+        // Log activity
+        logActivity(user, "ACCOUNT_UNFROZEN", "Unfrozen account: " + account.getAccountNumber());
     }
 
     /**
@@ -588,11 +614,11 @@ public class AccountService {
         long savingsCount = accounts.stream()
                 .filter(acc -> acc.getAccountType().equals("SAVINGS"))
                 .count();
-        
+
         long checkingCount = accounts.stream()
                 .filter(acc -> acc.getAccountType().equals("CHECKING"))
                 .count();
-        
+
         long businessCount = accounts.stream()
                 .filter(acc -> acc.getAccountType().equals("BUSINESS"))
                 .count();
@@ -633,7 +659,7 @@ public class AccountService {
             long number = 1000000000L + (long) (random.nextDouble() * 9000000000L);
             accountNumber = ACCOUNT_PREFIX + number;
         } while (accountRepository.existsByAccountNumber(accountNumber));
-        
+
         return accountNumber;
     }
 
@@ -690,7 +716,7 @@ public class AccountService {
         content.append("Total Credits: ").append(statement.totalCredits()).append(" ").append(statement.currency()).append("\n");
         content.append("Total Debits: ").append(statement.totalDebits()).append(" ").append(statement.currency()).append("\n");
         content.append("Total Transactions: ").append(statement.totalTransactions()).append("\n");
-        
+
         return content.toString().getBytes();
     }
 
@@ -745,5 +771,68 @@ public class AccountService {
                 history.getDescription(),
                 history.getRecordedAt()
         );
+    }
+
+    /**
+     * Log user activity
+     */
+    private void logActivity(User user, String action, String description) {
+        try {
+            String ipAddress = getClientIpAddress();
+            String userAgent = getUserAgent();
+
+            UserActivity activity = new UserActivity(
+                    user.getId(),
+                    action,
+                    description,
+                    ipAddress,
+                    userAgent
+            );
+
+            userActivityRepository.save(activity);
+        } catch (Exception e) {
+            // Log error but don't throw exception
+            System.err.println("Failed to log activity: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get client IP address
+     */
+    private String getClientIpAddress() {
+        try {
+            ServletRequestAttributes attributes =
+                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attributes != null) {
+                HttpServletRequest request = attributes.getRequest();
+
+                String xForwardedFor = request.getHeader("X-Forwarded-For");
+                if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+                    return xForwardedFor.split(",")[0].trim();
+                }
+
+                return request.getRemoteAddr();
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return "unknown";
+    }
+
+    /**
+     * Get user agent
+     */
+    private String getUserAgent() {
+        try {
+            ServletRequestAttributes attributes =
+                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attributes != null) {
+                HttpServletRequest request = attributes.getRequest();
+                return request.getHeader("User-Agent");
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return "unknown";
     }
 }
