@@ -1,6 +1,7 @@
 package com.bank.bankbackend.transaction.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /**
  * Raise dispute request
