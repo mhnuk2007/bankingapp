@@ -163,7 +163,7 @@ public class CardService {
         User user = getCurrentUser();
 
         // Build specification
-        Specification<Card> spec = Specification.where(null);
+        Specification<Card> spec = Specification.where((Specification<Card>) null);
 
         // Filter by user's accounts
         List<Long> userAccountIds = accountRepository.findByUserId(user.getId())
