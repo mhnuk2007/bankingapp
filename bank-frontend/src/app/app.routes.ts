@@ -2,16 +2,18 @@ import { Routes } from '@angular/router';
 import { authGuard } from '@core/guards/auth.guard';
 
 export const routes: Routes = [
+    // Public routes - no authentication required (must come first)
     {
         path: '',
-        redirectTo: '/dashboard',
-        pathMatch: 'full',
+        loadChildren: () =>
+            import('./features/public/public.routes').then((m) => m.PUBLIC_ROUTES),
     },
     {
         path: 'auth',
         loadChildren: () =>
             import('./features/auth/auth.routes').then((m) => m.AUTH_ROUTES),
     },
+    // Authenticated routes - protected by guard, shared layout
     {
         path: '',
         canActivate: [authGuard],
@@ -74,6 +76,6 @@ export const routes: Routes = [
     },
     {
         path: '**',
-        redirectTo: '/dashboard',
+        redirectTo: '',
     },
 ];
