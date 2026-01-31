@@ -37,11 +37,10 @@ export const routes: Routes = [
             },
             {
                 path: 'transactions',
-                loadComponent: () =>
-                    import('@features/dashboard/components/dashboard/dashboard.component').then(
-                        (m) => m.DashboardComponent
+                loadChildren: () =>
+                    import('./features/transactions/transactions.routes').then(
+                        (m) => m.TRANSACTION_ROUTES
                     ),
-                title: 'Transactions - SecureBank',
             },
             {
                 path: 'transfers',

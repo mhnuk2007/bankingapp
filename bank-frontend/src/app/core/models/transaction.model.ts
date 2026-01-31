@@ -1,40 +1,86 @@
-export type TransactionType =
-    | 'DEPOSIT'
-    | 'WITHDRAWAL'
-    | 'TRANSFER_IN'
-    | 'TRANSFER_OUT'
-    | 'PAYMENT'
-    | 'FEE'
-    | 'INTEREST';
-
-export type TransactionStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
-
 export interface Transaction {
     id: number;
-    referenceNumber: string;
     accountId: number;
-    accountNumber: string;
-    transactionType: TransactionType;
+    transactionType: string;
     amount: number;
-    balanceAfter: number;
     currency: string;
+    reference: string;
     description: string;
-    status: TransactionStatus;
-    recipientAccountNumber?: string;
-    recipientName?: string;
-    senderAccountNumber?: string;
-    senderName?: string;
-    transactionDate: string;
+    status: string;
     createdAt: string;
 }
 
-export interface TransactionFilter {
+// Transaction Response Models
+export interface TransactionResponse {
+    id: number;
+    accountId: number;
+    transactionType: string;
+    amount: number;
+    currency: string;
+    reference: string;
+    description: string;
+    status: string;
+    createdAt: string;
+}
+
+export interface TransactionReceiptResponse {
+    transactionId: number;
+    reference: string;
+    transactionType: string;
+    amount: number;
+    currency: string;
+    description: string;
+    status: string;
+    accountNumber: string;
+    accountType: string;
+    transactionDate: string;
+}
+
+export interface TransactionStatisticsResponse {
+    totalTransactions: number;
+    totalDeposits: number;
+    totalWithdrawals: number;
+    depositCount: number;
+    withdrawalCount: number;
+    pendingCount: number;
+    failedCount: number;
+}
+
+export interface TransactionCategoriesResponse {
+    types: string[];
+    statuses: string[];
+}
+
+// Request Models
+export interface DepositRequest {
+    accountId: number;
+    amount: number;
+    description: string;
+}
+
+export interface WithdrawRequest {
+    accountId: number;
+    amount: number;
+    description: string;
+}
+
+export interface RaiseDisputeRequest {
+    reason: string;
+}
+
+export interface SearchTransactionRequest {
     accountId?: number;
-    type?: TransactionType;
+    type?: string;
+    status?: string;
     startDate?: string;
     endDate?: string;
     minAmount?: number;
     maxAmount?: number;
-    page?: number;
-    size?: number;
+}
+
+export interface ExportTransactionsRequest {
+    startDate: string;
+    endDate: string;
+    format: string;
+    accountId?: number;
 }

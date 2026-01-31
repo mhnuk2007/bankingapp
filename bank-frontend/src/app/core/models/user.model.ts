@@ -217,10 +217,3 @@ export interface PageActivityResponse {
 }
 
 // --- Common ---
-
-// Define if not already present, though typically generated or from a lib
-export interface Pageable {
-    page?: number;
-    size?: number;
-    sort?: string[];
-}
