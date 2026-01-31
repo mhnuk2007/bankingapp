@@ -86,20 +86,27 @@
                 <a routerLink="/accounts" class="view-all">View All</a>
             </div>
             <div class="accounts-list">
-                @for (account of accounts(); track account.id) {
-                <div class="account-item">
-                    <div class="account-icon" [attr.data-type]="account.type">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path
-                                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                        </svg>
+                @if (accounts().length > 0) {
+                    @for (account of accounts(); track account.id) {
+                    <a [routerLink]="['/accounts', account.id]" class="account-item">
+                        <div class="account-icon" [attr.data-type]="account.type">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path
+                                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                        </div>
+                        <div class="account-info">
+                            <span class="account-name">{{ account.name }}</span>
+                            <span class="account-number">{{ account.number }}</span>
+                        </div>
+                        <span class="account-balance">{{ account.balance | currency:account.currency:'symbol':'1.2-2' }}</span>
+                    </a>
+                    }
+                } @else {
+                    <div class="empty-accounts">
+                        <p>No accounts yet. Create your first account to get started.</p>
+                        <a routerLink="/accounts" class="create-account-link">Create Account</a>
                     </div>
-                    <div class="account-info">
-                        <span class="account-name">{{ account.name }}</span>
-                        <span class="account-number">{{ account.number }}</span>
-                    </div>
-                    <span class="account-balance">{{ account.balance | currency:'USD':'symbol':'1.2-2' }}</span>
-                </div>
                 }
             </div>
         </section>

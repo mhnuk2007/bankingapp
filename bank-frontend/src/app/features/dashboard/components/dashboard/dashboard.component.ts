@@ -1,7 +1,9 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthStore } from '@features/auth/store/auth.store';
+import { AccountStore } from '@features/accounts/store/account.store';
 import { CurrencyPipe, DatePipe } from '@angular/common';
+import { Account } from '@core/models';
 
 interface QuickAction {
     id: string;
@@ -28,16 +30,33 @@ interface Transaction {
 })
 export class DashboardComponent implements OnInit {
     protected readonly authStore = inject(AuthStore);
+    protected readonly accountStore = inject(AccountStore);
 
     protected readonly isLoading = signal(false);
-    protected readonly totalBalance = signal(24563.89);
     protected readonly monthlyIncome = signal(8450.0);
     protected readonly monthlyExpenses = signal(3240.5);
 
-    protected readonly accounts = signal([
-        { id: 1, name: 'Savings Account', number: '****4521', balance: 18234.56, type: 'savings' },
-        { id: 2, name: 'Checking Account', number: '****7893', balance: 6329.33, type: 'checking' },
-    ]);
+    protected readonly accounts = computed(() => {
+        const storeAccounts = this.accountStore.accounts();
+        if (!storeAccounts || storeAccounts.length === 0) {
+            return [];
+        }
+        return storeAccounts.slice(0, 3).map(account => ({
+            id: account.id,
+            name: account.nickname || account.accountType,
+            number: account.accountNumber 
+                ? `****${account.accountNumber.slice(-4)}` 
+                : '****',
+            balance: account.balance ?? 0,
+            type: account.accountType?.toLowerCase() || 'account',
+            currency: account.currency || 'USD'
+        }));
+    });
+
+    protected readonly totalBalance = computed(() => {
+        const summary = this.accountStore.summary();
+        return summary?.totalBalance ?? 0;
+    });
 
     protected readonly recentTransactions = signal<Transaction[]>([
         { id: 1, type: 'credit', description: 'Salary Deposit', amount: 5200.0, date: '2026-01-28' },
@@ -70,5 +89,6 @@ export class DashboardComponent implements OnInit {
 
     ngOnInit(): void {
         this.authStore.loadUserFromToken();
+        this.accountStore.loadAllAccounts();
     }
 }

@@ -30,11 +30,8 @@ export const routes: Routes = [
             },
             {
                 path: 'accounts',
-                loadComponent: () =>
-                    import('@features/dashboard/components/dashboard/dashboard.component').then(
-                        (m) => m.DashboardComponent
-                    ),
-                title: 'Accounts - SecureBank',
+                loadChildren: () =>
+                    import('./features/accounts/accounts.routes').then((m) => m.ACCOUNT_ROUTES),
             },
             {
                 path: 'transactions',

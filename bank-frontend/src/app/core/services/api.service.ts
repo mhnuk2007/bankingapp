@@ -39,4 +39,25 @@ export class ApiService {
     delete<T>(endpoint: string): Observable<T> {
         return this.http.delete<T>(`${this.baseUrl}${endpoint}`);
     }
+
+    getBlob(endpoint: string, params?: Record<string, unknown>): Observable<Blob> {
+        let httpParams = new HttpParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== null && value !== undefined) {
+                    httpParams = httpParams.append(key, String(value));
+                }
+            });
+        }
+        return this.http.get(`${this.baseUrl}${endpoint}`, {
+            params: httpParams,
+            responseType: 'blob',
+        });
+    }
+
+    postBlob(endpoint: string, body: unknown): Observable<Blob> {
+        return this.http.post(`${this.baseUrl}${endpoint}`, body, {
+            responseType: 'blob',
+        });
+    }
 }
