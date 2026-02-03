@@ -22,7 +22,10 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
@@ -37,11 +40,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
 @Service
 public class CardService {
+
+    private static final Logger logger = LoggerFactory.getLogger(CardService.class);
 
     private final CardRepository cardRepository;
     private final CardTransactionRepository cardTransactionRepository;
@@ -160,32 +166,50 @@ public class CardService {
      * Get cards with filters
      */
     public Page<CardResponse> getCards(Long accountId, String type, String status, Pageable pageable) {
-        User user = getCurrentUser();
+        logger.info("Fetching cards with filters: accountId={}, type={}, status={}", accountId, type, status);
+        try {
+            User user = getCurrentUser();
+            logger.info("Authenticated user: {}", user.getUsername());
 
-        // Build specification
-        Specification<Card> spec = Specification.where((Specification<Card>) null);
+            // Filter by user's accounts
+            List<Long> userAccountIds = accountRepository.findByUserId(user.getId())
+                    .stream()
+                    .map(Account::getId)
+                    .toList();
+            logger.info("Found {} accounts for user: {}", userAccountIds.size(), userAccountIds);
 
-        // Filter by user's accounts
-        List<Long> userAccountIds = accountRepository.findByUserId(user.getId())
-                .stream()
-                .map(Account::getId)
-                .toList();
+            if (userAccountIds.isEmpty()) {
+                logger.warn("User {} has no accounts. Returning empty page.", user.getUsername());
+                return new PageImpl<>(Collections.emptyList(), pageable, 0);
+            }
 
-        spec = spec.and((root, query, cb) -> root.get("accountId").in(userAccountIds));
+            // Build specification
+            logger.debug("Building specification for card query.");
+            Specification<Card> spec = Specification.where((root, query, cb) -> root.get("accountId").in(userAccountIds));
 
-        // Apply filters
-        if (accountId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("accountId"), accountId));
+            // Apply filters
+            if (accountId != null) {
+                logger.debug("Applying accountId filter: {}", accountId);
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("accountId"), accountId));
+            }
+            if (type != null) {
+                logger.debug("Applying type filter: {}", type);
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("cardType"), type));
+            }
+            if (status != null) {
+                logger.debug("Applying status filter: {}", status);
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+            }
+
+            logger.info("Executing findAll cards query.");
+            Page<Card> cards = cardRepository.findAll(spec, pageable);
+            logger.info("Found {} cards.", cards.getTotalElements());
+
+            return cards.map(this::mapToCardResponse);
+        } catch (Exception e) {
+            logger.error("Error fetching cards: {}", e.getMessage(), e);
+            throw e;
         }
-        if (type != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("cardType"), type));
-        }
-        if (status != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
-        }
-
-        Page<Card> cards = cardRepository.findAll(spec, pageable);
-        return cards.map(this::mapToCardResponse);
     }
 
     /**
@@ -717,6 +741,10 @@ public class CardService {
                 .stream()
                 .map(Account::getId)
                 .toList();
+
+        if (userAccountIds.isEmpty()) {
+            return new CardStatisticsResponse(0, 0, 0, 0, 0);
+        }
 
         List<Card> cards = cardRepository.findByAccountIdIn(userAccountIds);
 

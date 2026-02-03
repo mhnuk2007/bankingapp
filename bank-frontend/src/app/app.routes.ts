@@ -44,27 +44,20 @@ export const routes: Routes = [
             },
             {
                 path: 'transfers',
-                loadComponent: () =>
-                    import('@features/dashboard/components/dashboard/dashboard.component').then(
-                        (m) => m.DashboardComponent
-                    ),
-                title: 'Transfers - SecureBank',
+                loadChildren: () =>
+                    import('./features/transfers/transfers.routes').then((m) => m.TRANSFER_ROUTES),
             },
             {
                 path: 'payments',
-                loadComponent: () =>
-                    import('@features/dashboard/components/dashboard/dashboard.component').then(
-                        (m) => m.DashboardComponent
+                loadChildren: () =>
+                    import('./features/payments/payments.routes').then(
+                        (m) => m.PAYMENT_ROUTES
                     ),
-                title: 'Payments - SecureBank',
             },
             {
                 path: 'cards',
-                loadComponent: () =>
-                    import('@features/dashboard/components/dashboard/dashboard.component').then(
-                        (m) => m.DashboardComponent
-                    ),
-                title: 'Cards - SecureBank',
+                loadChildren: () =>
+                    import('./features/cards/cards.routes').then((m) => m.CARD_ROUTES),
             },
             {
                 path: 'user',

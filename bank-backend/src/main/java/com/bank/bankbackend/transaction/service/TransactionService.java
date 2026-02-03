@@ -158,8 +158,8 @@ public class TransactionService {
     public TransactionResponse deposit(@Valid DepositRequest request) {
         User user = getCurrentUser();
 
-        // Get account
-        Account account = accountRepository.findById(request.accountId())
+        // Get account with lock
+        Account account = accountRepository.findByIdWithLock(request.accountId())
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
         // Verify ownership
@@ -220,8 +220,8 @@ public class TransactionService {
     public TransactionResponse withdraw(@Valid WithdrawRequest request) {
         User user = getCurrentUser();
 
-        // Get account
-        Account account = accountRepository.findById(request.accountId())
+        // Get account with lock
+        Account account = accountRepository.findByIdWithLock(request.accountId())
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
         // Verify ownership

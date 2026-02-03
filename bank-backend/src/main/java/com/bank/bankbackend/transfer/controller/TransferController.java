@@ -4,6 +4,8 @@ import com.bank.bankbackend.transfer.dto.*;
 import com.bank.bankbackend.transfer.service.TransferService;
 import com.bank.bankbackend.user.dto.MessageResponse;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -21,6 +23,7 @@ import java.time.LocalDate;
 @PreAuthorize("isAuthenticated()")
 public class TransferController {
 
+    private static final Logger logger = LoggerFactory.getLogger(TransferController.class);
     private final TransferService transferService;
 
     public TransferController(TransferService transferService) {
@@ -38,7 +41,11 @@ public class TransferController {
             TransferResponse transfer = transferService.internalTransfer(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(transfer);
         } catch (IllegalArgumentException e) {
+            logger.warn("Invalid internal transfer request: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            logger.error("Error processing internal transfer: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -53,7 +60,11 @@ public class TransferController {
             TransferResponse transfer = transferService.externalTransfer(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(transfer);
         } catch (IllegalArgumentException e) {
+            logger.warn("Invalid external transfer request: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            logger.error("Error processing external transfer: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -68,7 +79,11 @@ public class TransferController {
             TransferResponse transfer = transferService.scheduleTransfer(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(transfer);
         } catch (IllegalArgumentException e) {
+            logger.warn("Invalid scheduled transfer request: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            logger.error("Error processing scheduled transfer: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -83,7 +98,11 @@ public class TransferController {
             RecurringTransferResponse transfer = transferService.createRecurringTransfer(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(transfer);
         } catch (IllegalArgumentException e) {
+            logger.warn("Invalid recurring transfer request: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            logger.error("Error processing recurring transfer: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -105,6 +124,7 @@ public class TransferController {
             );
             return ResponseEntity.ok(transfers);
         } catch (Exception e) {
+            logger.error("Error fetching transfers: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -119,6 +139,9 @@ public class TransferController {
             return ResponseEntity.ok(transfer);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            logger.error("Error fetching transfer {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -133,6 +156,7 @@ public class TransferController {
             Page<TransferResponse> transfers = transferService.getPendingTransfers(pageable);
             return ResponseEntity.ok(transfers);
         } catch (Exception e) {
+            logger.error("Error fetching pending transfers: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -148,6 +172,7 @@ public class TransferController {
             Page<TransferResponse> transfers = transferService.getScheduledTransfers(pageable);
             return ResponseEntity.ok(transfers);
         } catch (Exception e) {
+            logger.error("Error fetching scheduled transfers: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -166,6 +191,7 @@ public class TransferController {
             );
             return ResponseEntity.ok(transfers);
         } catch (Exception e) {
+            logger.error("Error fetching recurring transfers: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -181,6 +207,9 @@ public class TransferController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(new MessageResponse(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Error cancelling transfer {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -195,6 +224,9 @@ public class TransferController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(new MessageResponse(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Error cancelling recurring transfer {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -208,6 +240,9 @@ public class TransferController {
             return ResponseEntity.ok(receipt);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            logger.error("Error fetching receipt for transfer {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -223,6 +258,9 @@ public class TransferController {
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            logger.error("Error verifying account {}: {}", request.accountNumber(), e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -240,6 +278,7 @@ public class TransferController {
             );
             return ResponseEntity.ok(statistics);
         } catch (Exception e) {
+            logger.error("Error fetching transfer statistics: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -253,6 +292,7 @@ public class TransferController {
             TransferLimitsResponse limits = transferService.getTransferLimits();
             return ResponseEntity.ok(limits);
         } catch (Exception e) {
+            logger.error("Error fetching transfer limits: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

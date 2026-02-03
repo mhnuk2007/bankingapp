@@ -34,4 +34,10 @@ export class SidebarComponent {
     protected toggleCollapse(): void {
         this.isCollapsed.update((v) => !v);
     }
+    protected expandSidebar() {
+       if (this.isCollapsed()) {
+      this.isCollapsed.set(false);
+  }
+}
+
 }

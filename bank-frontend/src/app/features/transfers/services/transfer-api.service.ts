@@ -1,23 +1,23 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { ApiService } from '@core/services/api.service';
 import {
-  PaginatedResponse,
-  Transfer,
+  MessageResponse,
   Pageable,
+  PageTransferResponse,
+  PageRecurringTransferResponse,
+  RecurringTransferRequest,
+  RecurringTransferResponse,
+  ScheduledTransferRequest,
+  Transfer,
   TransferResponse,
-  TransferReceiptResponse,
-  TransferStatisticsResponse,
-  TransferLimitsResponse,
   VerifyAccountRequest,
   VerifyAccountResponse,
   InternalTransferRequest,
   ExternalTransferRequest,
-  ScheduledTransferRequest,
-  RecurringTransferRequest,
-  RecurringTransferResponse,
-  MessageResponse
+  TransferReceiptResponse,
+  TransferStatisticsResponse,
+  TransferLimitsResponse
 } from '@core/models';
 
 export interface GetAllTransfersParams {
@@ -33,127 +33,130 @@ export interface GetAllTransfersParams {
   providedIn: 'root'
 })
 export class TransferApiService {
-  private readonly http = inject(HttpClient);
-  private readonly apiUrl = '/api/v1/transfers';
+  private readonly api = inject(ApiService);
+  private readonly baseUrl = '/transfers';
 
   // GET endpoints
-  getAllTransfers(params: GetAllTransfersParams): Observable<PaginatedResponse<Transfer>> {
-    let httpParams = new HttpParams()
-      .set('page', params.pageable!.page.toString())
-      .set('size', params.pageable!.size.toString());
-
-    if (params.pageable.sort) {
-      params.pageable.sort.forEach(sortParam => {
-        httpParams = httpParams.append('sort', sortParam);
-      });
-    }
+  getAllTransfers(params: GetAllTransfersParams): Observable<PageTransferResponse> {
+    const sort = params.pageable.sort?.length ? params.pageable.sort : ['createdAt,desc'];
+    const queryParams: Record<string, string | number | string[]> = {
+      page: params.pageable.page,
+      size: params.pageable.size,
+      sort
+    };
 
     if (params.accountId) {
-      httpParams = httpParams.set('accountId', params.accountId.toString());
+      queryParams['accountId'] = params.accountId;
     }
     if (params.type) {
-      httpParams = httpParams.set('type', params.type);
+      queryParams['type'] = params.type;
     }
     if (params.status) {
-      httpParams = httpParams.set('status', params.status);
+      queryParams['status'] = params.status;
     }
     if (params.startDate) {
-      httpParams = httpParams.set('startDate', params.startDate);
+      queryParams['startDate'] = params.startDate;
     }
     if (params.endDate) {
-      httpParams = httpParams.set('endDate', params.endDate);
+      queryParams['endDate'] = params.endDate;
     }
 
-    return this.http.get<any>(this.apiUrl, { params: httpParams }).pipe(
-      map(response => ({
-        content: response.content,
-        page: response.number,
-        size: response.size,
-        totalElements: response.totalElements,
-        totalPages: response.totalPages,
-        first: response.first,
-        last: response.last
-      }))
-    );
+    return this.api.get<PageTransferResponse>(this.baseUrl, queryParams);
   }
 
   getTransfer(id: number): Observable<TransferResponse> {
-    return this.http.get<TransferResponse>(`${this.apiUrl}/${id}`);
+    if (!id || Number.isNaN(id) || id <= 0) {
+      throw new Error('Invalid transfer ID');
+    }
+    return this.api.get<TransferResponse>(`${this.baseUrl}/${id}`);
   }
 
   getReceipt(id: number): Observable<TransferReceiptResponse> {
-    return this.http.get<TransferReceiptResponse>(`${this.apiUrl}/${id}/receipt`);
+    if (!id || Number.isNaN(id) || id <= 0) {
+      throw new Error('Invalid transfer ID');
+    }
+    return this.api.get<TransferReceiptResponse>(`${this.baseUrl}/${id}/receipt`);
   }
 
   getStatistics(startDate?: string, endDate?: string): Observable<TransferStatisticsResponse> {
-    let params = new HttpParams();
-    if (startDate) params = params.set('startDate', startDate);
-    if (endDate) params = params.set('endDate', endDate);
-
-    return this.http.get<TransferStatisticsResponse>(`${this.apiUrl}/statistics`, { params });
+    const params: Record<string, string> = {};
+    if (startDate) params['startDate'] = startDate;
+    if (endDate) params['endDate'] = endDate;
+    return this.api.get<TransferStatisticsResponse>(`${this.baseUrl}/statistics`, params);
   }
 
-  getPendingTransfers(pageable?: Pageable): Observable<PaginatedResponse<Transfer>> {
-    let params = new HttpParams();
-    if (pageable) {
-      params = params.set('page', pageable.page.toString());
-      params = params.set('size', pageable.size.toString());
-      if (pageable.sort) {
-        pageable.sort.forEach(sortParam => {
-          params = params.append('sort', sortParam);
-        });
-      }
-    }
+  getPendingTransfers(pageable?: Pageable): Observable<PageTransferResponse> {
+    const params: Record<string, string | number | string[]> = {
+      page: pageable?.page || 0,
+      size: pageable?.size || 20,
+      sort: pageable?.sort?.length ? pageable.sort : ['createdAt,desc']
+    };
+    return this.api.get<PageTransferResponse>(`${this.baseUrl}/pending`, params);
+  }
 
-    return this.http.get<any>(`${this.apiUrl}/pending`, { params }).pipe(
-      map(response => ({
-        content: response.content,
-        page: response.number,
-        size: response.size,
-        totalElements: response.totalElements,
-        totalPages: response.totalPages,
-        first: response.first,
-        last: response.last
-      }))
-    );
+  getScheduledTransfers(pageable: Pageable): Observable<PageTransferResponse> {
+    const params: Record<string, string | number | string[]> = {
+      page: pageable.page,
+      size: pageable.size,
+      sort: pageable.sort?.length ? pageable.sort : ['scheduledDate,desc']
+    };
+    return this.api.get<PageTransferResponse>(`${this.baseUrl}/scheduled`, params);
+  }
+
+  getRecurringTransfers(pageable: Pageable, activeOnly?: boolean): Observable<PageRecurringTransferResponse> {
+    const params: Record<string, string | number | string[] | boolean> = {
+      page: pageable.page,
+      size: pageable.size,
+      sort: pageable.sort?.length ? pageable.sort : ['createdAt,desc']
+    };
+    if (activeOnly !== undefined) {
+      params['activeOnly'] = activeOnly;
+    }
+    return this.api.get<PageRecurringTransferResponse>(`${this.baseUrl}/recurring`, params);
   }
 
   getTransferLimits(): Observable<TransferLimitsResponse> {
-    return this.http.get<TransferLimitsResponse>(`${this.apiUrl}/limits`);
+    return this.api.get<TransferLimitsResponse>(`${this.baseUrl}/limits`);
   }
 
   // POST endpoints
   internalTransfer(data: InternalTransferRequest): Observable<TransferResponse> {
-    return this.http.post<TransferResponse>(`${this.apiUrl}/internal`, data);
+    return this.api.post<TransferResponse>(`${this.baseUrl}/internal`, data);
   }
 
   externalTransfer(data: ExternalTransferRequest): Observable<TransferResponse> {
-    return this.http.post<TransferResponse>(`${this.apiUrl}/external`, data);
+    return this.api.post<TransferResponse>(`${this.baseUrl}/external`, data);
   }
 
   scheduledTransfer(data: ScheduledTransferRequest): Observable<TransferResponse> {
-    return this.http.post<TransferResponse>(`${this.apiUrl}/scheduled`, data);
+    return this.api.post<TransferResponse>(`${this.baseUrl}/scheduled`, data);
   }
 
   recurringTransfer(data: RecurringTransferRequest): Observable<RecurringTransferResponse> {
-    return this.http.post<RecurringTransferResponse>(`${this.apiUrl}/recurring`, data);
+    return this.api.post<RecurringTransferResponse>(`${this.baseUrl}/recurring`, data);
   }
 
   verifyAccount(data: VerifyAccountRequest): Observable<VerifyAccountResponse> {
-    return this.http.post<VerifyAccountResponse>(`${this.apiUrl}/verify-account`, data);
+    return this.api.post<VerifyAccountResponse>(`${this.baseUrl}/verify-account`, data);
   }
 
   // POST endpoints for management
   cancelTransfer(id: number): Observable<MessageResponse> {
-    return this.http.post<MessageResponse>(`${this.apiUrl}/${id}/cancel`, {});
+    if (!id || Number.isNaN(id) || id <= 0) {
+      throw new Error('Invalid transfer ID');
+    }
+    return this.api.post<MessageResponse>(`${this.baseUrl}/${id}/cancel`, {});
   }
 
   cancelRecurringTransfer(id: number): Observable<MessageResponse> {
-    return this.http.post<MessageResponse>(`${this.apiUrl}/recurring/${id}/cancel`, {});
+    if (!id || Number.isNaN(id) || id <= 0) {
+      throw new Error('Invalid recurring transfer ID');
+    }
+    return this.api.post<MessageResponse>(`${this.baseUrl}/recurring/${id}/cancel`, {});
   }
 
   // Health check
   checkHealth(): Observable<string> {
-    return this.http.get(`${this.apiUrl}/health`, { responseType: 'text' });
+    return this.api.get<string>(`${this.baseUrl}/health`);
   }
 }

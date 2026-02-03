@@ -1,5 +1,6 @@
 package com.bank.bankbackend.card.entity;
 
+import com.bank.bankbackend.common.converter.YearMonthDateAttributeConverter;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -33,6 +34,7 @@ public class Card {
     private String pin;
 
     @Column(name = "expiry_date", nullable = false)
+    @Convert(converter = YearMonthDateAttributeConverter.class)
     private YearMonth expiryDate;
 
     @Column(nullable = false, length = 20)

@@ -8,8 +8,8 @@ Authorization: Bearer <access-token>
 Content-Type: application/json
 
 {
-  "firstName": "Honey",
-  "lastName": "Chauhan",
+  "firstName": "John",
+  "lastName": "Doe",
   "phoneNumber": "1234567890",
   "dateOfBirth": "1995-01-01",
   "address": "123 Street",

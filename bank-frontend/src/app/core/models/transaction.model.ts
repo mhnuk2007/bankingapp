@@ -51,6 +51,35 @@ export interface TransactionCategoriesResponse {
     statuses: string[];
 }
 
+export interface PageTransactionResponse {
+    totalElements: number;
+    totalPages: number;
+    size: number;
+    content: TransactionResponse[];
+    number: number;
+    sort: {
+        empty: boolean;
+        sorted: boolean;
+        unsorted: boolean;
+    };
+    first: boolean;
+    last: boolean;
+    numberOfElements: number;
+    pageable: {
+        offset: number;
+        sort: {
+            empty: boolean;
+            sorted: boolean;
+            unsorted: boolean;
+        };
+        paged: boolean;
+        pageNumber: number;
+        pageSize: number;
+        unpaged: boolean;
+    };
+    empty: boolean;
+}
+
 // Request Models
 export interface DepositRequest {
     accountId: number;

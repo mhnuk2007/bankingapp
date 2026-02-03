@@ -36,8 +36,8 @@ export class AccountDetailsComponent implements OnInit {
                     this.loadAdditionalData(accountId);
                 } else {
                     // Invalid ID - redirect to account list
-                    this.router.navigate(['/accounts'], { 
-                        queryParams: { error: 'invalid_account_id' } 
+                    this.router.navigate(['/accounts'], {
+                        queryParams: { error: 'invalid_account_id' }
                     });
                 }
             } else {
@@ -155,5 +155,15 @@ export class AccountDetailsComponent implements OnInit {
 
     protected goBack(): void {
         this.router.navigate(['/accounts']);
+    }
+
+    protected onTransfer(): void {
+        const id = this.accountId();
+        if (id && !Number.isNaN(id) && id > 0) {
+            // Navigate to transfers page with the account ID as a query parameter
+            this.router.navigate(['/transfers'], {
+                queryParams: { fromAccount: id }
+            });
+        }
     }
 }

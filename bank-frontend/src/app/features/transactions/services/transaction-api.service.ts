@@ -1,209 +1,167 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { ApiService } from '@core/services/api.service';
 import {
-  PaginatedResponse,
-  Transaction,
-  Pageable,
-  TransactionResponse,
-  TransactionReceiptResponse,
-  TransactionStatisticsResponse,
-  TransactionCategoriesResponse,
-  MessageResponse,
-  DepositRequest,
-  WithdrawRequest,
-  RaiseDisputeRequest,
-  SearchTransactionRequest,
-  ExportTransactionsRequest
+    PageTransactionResponse,
+    TransactionResponse,
+    TransactionReceiptResponse,
+    TransactionStatisticsResponse,
+    TransactionCategoriesResponse,
+    MessageResponse,
+    DepositRequest,
+    WithdrawRequest,
+    RaiseDisputeRequest,
+    SearchTransactionRequest,
+    ExportTransactionsRequest,
+    Pageable,
 } from '@core/models';
 
 export interface GetAllTransactionsParams {
-  accountId?: number;
-  type?: string;
-  status?: string;
-  startDate?: string;
-  endDate?: string;
-  minAmount?: number;
-  maxAmount?: number;
-  pageable: Pageable;
+    accountId?: number;
+    type?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    minAmount?: number;
+    maxAmount?: number;
+    pageable: Pageable;
 }
 
 @Injectable({
-  providedIn: 'root'
+    providedIn: 'root',
 })
 export class TransactionApiService {
-  private readonly http = inject(HttpClient);
-  private readonly apiUrl = '/api/v1/transactions';
+    private readonly api = inject(ApiService);
+    private readonly baseUrl = '/transactions';
 
-  // GET endpoints
-  getAllTransactions(params: GetAllTransactionsParams): Observable<PaginatedResponse<Transaction>> {
-    let httpParams = new HttpParams()
-      .set('page', params.pageable!.page.toString())
-      .set('size', params.pageable!.size.toString());
+    // GET endpoints
+    getAllTransactions(params: GetAllTransactionsParams): Observable<PageTransactionResponse> {
+        const queryParams: Record<string, string | number | string[]> = {
+            page: params.pageable.page,
+            size: params.pageable.size,
+        };
 
-    if (params.pageable.sort) {
-      params.pageable.sort.forEach(sortParam => {
-        httpParams = httpParams.append('sort', sortParam);
-      });
+        if (params.pageable.sort?.length) {
+            queryParams['sort'] = params.pageable.sort;
+        }
+        if (params.accountId) {
+            queryParams['accountId'] = params.accountId;
+        }
+        if (params.type) {
+            queryParams['type'] = params.type;
+        }
+        if (params.status) {
+            queryParams['status'] = params.status;
+        }
+        if (params.startDate) {
+            queryParams['startDate'] = params.startDate;
+        }
+        if (params.endDate) {
+            queryParams['endDate'] = params.endDate;
+        }
+        if (params.minAmount !== undefined) {
+            queryParams['minAmount'] = params.minAmount;
+        }
+        if (params.maxAmount !== undefined) {
+            queryParams['maxAmount'] = params.maxAmount;
+        }
+
+        return this.api.get<PageTransactionResponse>(this.baseUrl, queryParams);
     }
 
-    if (params.accountId) {
-      httpParams = httpParams.set('accountId', params.accountId.toString());
-    }
-    if (params.type) {
-      httpParams = httpParams.set('type', params.type);
-    }
-    if (params.status) {
-      httpParams = httpParams.set('status', params.status);
-    }
-    if (params.startDate) {
-      httpParams = httpParams.set('startDate', params.startDate);
-    }
-    if (params.endDate) {
-      httpParams = httpParams.set('endDate', params.endDate);
-    }
-    if (params.minAmount) {
-      httpParams = httpParams.set('minAmount', params.minAmount.toString());
-    }
-    if (params.maxAmount) {
-      httpParams = httpParams.set('maxAmount', params.maxAmount.toString());
+    getTransaction(id: number): Observable<TransactionResponse> {
+        if (!id || Number.isNaN(id) || id <= 0) {
+            throw new Error('Invalid transaction ID');
+        }
+        return this.api.get<TransactionResponse>(`${this.baseUrl}/${id}`);
     }
 
-    return this.http.get<any>(this.apiUrl, { params: httpParams }).pipe(
-      map(response => ({
-        content: response.content,
-        page: response.number,
-        size: response.size,
-        totalElements: response.totalElements,
-        totalPages: response.totalPages,
-        first: response.first,
-        last: response.last
-      }))
-    );
-  }
-
-  getTransaction(id: number): Observable<TransactionResponse> {
-    return this.http.get<TransactionResponse>(`${this.apiUrl}/${id}`);
-  }
-
-  getReceipt(id: number): Observable<TransactionReceiptResponse> {
-    return this.http.get<TransactionReceiptResponse>(`${this.apiUrl}/${id}/receipt`);
-  }
-
-  getStatistics(accountId?: number, startDate?: string, endDate?: string): Observable<TransactionStatisticsResponse> {
-    let params = new HttpParams();
-    if (accountId) params = params.set('accountId', accountId.toString());
-    if (startDate) params = params.set('startDate', startDate);
-    if (endDate) params = params.set('endDate', endDate);
-
-    return this.http.get<TransactionStatisticsResponse>(`${this.apiUrl}/statistics`, { params });
-  }
-
-  getRecentTransactions(accountId?: number, limit?: number, pageable?: Pageable): Observable<PaginatedResponse<Transaction>> {
-    let params = new HttpParams();
-    if (accountId) params = params.set('accountId', accountId.toString());
-    if (limit) params = params.set('limit', limit.toString());
-    if (pageable) {
-      params = params.set('page', pageable.page.toString());
-      params = params.set('size', pageable.size.toString());
-      if (pageable.sort) {
-        pageable.sort.forEach(sortParam => {
-          params = params.append('sort', sortParam);
-        });
-      }
+    getReceipt(id: number): Observable<TransactionReceiptResponse> {
+        if (!id || Number.isNaN(id) || id <= 0) {
+            throw new Error('Invalid transaction ID');
+        }
+        return this.api.get<TransactionReceiptResponse>(`${this.baseUrl}/${id}/receipt`);
     }
 
-    return this.http.get<any>(`${this.apiUrl}/recent`, { params }).pipe(
-      map(response => ({
-        content: response.content,
-        page: response.number,
-        size: response.size,
-        totalElements: response.totalElements,
-        totalPages: response.totalPages,
-        first: response.first,
-        last: response.last
-      }))
-    );
-  }
+    getStatistics(accountId?: number, startDate?: string, endDate?: string): Observable<TransactionStatisticsResponse> {
+        const params: Record<string, string | number> = {};
+        if (accountId) params['accountId'] = accountId;
+        if (startDate) params['startDate'] = startDate;
+        if (endDate) params['endDate'] = endDate;
 
-  getPendingTransactions(accountId?: number, pageable?: Pageable): Observable<PaginatedResponse<Transaction>> {
-    let params = new HttpParams();
-    if (accountId) params = params.set('accountId', accountId.toString());
-    if (pageable) {
-      params = params.set('page', pageable.page.toString());
-      params = params.set('size', pageable.size.toString());
-      if (pageable.sort) {
-        pageable.sort.forEach(sortParam => {
-          params = params.append('sort', sortParam);
-        });
-      }
+        return this.api.get<TransactionStatisticsResponse>(`${this.baseUrl}/statistics`, params);
     }
 
-    return this.http.get<any>(`${this.apiUrl}/pending`, { params }).pipe(
-      map(response => ({
-        content: response.content,
-        page: response.number,
-        size: response.size,
-        totalElements: response.totalElements,
-        totalPages: response.totalPages,
-        first: response.first,
-        last: response.last
-      }))
-    );
-  }
+    getRecentTransactions(accountId?: number, limit?: number, pageable?: Pageable): Observable<PageTransactionResponse> {
+        const params: Record<string, string | number | string[]> = {
+            page: pageable?.page ?? 0,
+            size: pageable?.size ?? 10,
+        };
+        if (accountId) params['accountId'] = accountId;
+        if (limit) params['limit'] = limit;
+        if (pageable?.sort?.length) {
+            params['sort'] = pageable.sort;
+        }
 
-  getCategories(): Observable<TransactionCategoriesResponse> {
-    return this.http.get<TransactionCategoriesResponse>(`${this.apiUrl}/categories`);
-  }
-
-  // POST endpoints
-  deposit(data: DepositRequest): Observable<TransactionResponse> {
-    return this.http.post<TransactionResponse>(`${this.apiUrl}/deposit`, data);
-  }
-
-  withdraw(data: WithdrawRequest): Observable<TransactionResponse> {
-    return this.http.post<TransactionResponse>(`${this.apiUrl}/withdraw`, data);
-  }
-
-  searchTransactions(data: SearchTransactionRequest, pageable: Pageable): Observable<PaginatedResponse<Transaction>> {
-    let params = new HttpParams()
-      .set('page', pageable.page.toString())
-      .set('size', pageable.size.toString());
-
-    if (pageable.sort) {
-      pageable.sort.forEach(sortParam => {
-        params = params.append('sort', sortParam);
-      });
+        return this.api.get<PageTransactionResponse>(`${this.baseUrl}/recent`, params);
     }
 
-    return this.http.post<any>(`${this.apiUrl}/search`, data, { params }).pipe(
-      map(response => ({
-        content: response.content,
-        page: response.number,
-        size: response.size,
-        totalElements: response.totalElements,
-        totalPages: response.totalPages,
-        first: response.first,
-        last: response.last
-      }))
-    );
-  }
+    getPendingTransactions(accountId?: number, pageable?: Pageable): Observable<PageTransactionResponse> {
+        const params: Record<string, string | number | string[]> = {
+            page: pageable?.page ?? 0,
+            size: pageable?.size ?? 10,
+        };
+        if (accountId) params['accountId'] = accountId;
+        if (pageable?.sort?.length) {
+            params['sort'] = pageable.sort;
+        }
 
-  exportTransactions(data: ExportTransactionsRequest): Observable<Blob> {
-    return this.http.post(`${this.apiUrl}/export`, data, { responseType: 'blob' });
-  }
+        return this.api.get<PageTransactionResponse>(`${this.baseUrl}/pending`, params);
+    }
 
-  raiseDispute(id: number, data: RaiseDisputeRequest): Observable<MessageResponse> {
-    return this.http.post<MessageResponse>(`${this.apiUrl}/${id}/dispute`, data);
-  }
+    getCategories(): Observable<TransactionCategoriesResponse> {
+        return this.api.get<TransactionCategoriesResponse>(`${this.baseUrl}/categories`);
+    }
 
-  cancelTransaction(id: number): Observable<MessageResponse> {
-    return this.http.post<MessageResponse>(`${this.apiUrl}/${id}/cancel`, {});
-  }
+    // POST endpoints
+    deposit(data: DepositRequest): Observable<TransactionResponse> {
+        return this.api.post<TransactionResponse>(`${this.baseUrl}/deposit`, data);
+    }
 
-  // Health check
-  checkHealth(): Observable<string> {
-    return this.http.get(`${this.apiUrl}/health`, { responseType: 'text' });
-  }
+    withdraw(data: WithdrawRequest): Observable<TransactionResponse> {
+        return this.api.post<TransactionResponse>(`${this.baseUrl}/withdraw`, data);
+    }
+
+    searchTransactions(data: SearchTransactionRequest, pageable: Pageable): Observable<PageTransactionResponse> {
+        const params = new URLSearchParams();
+        params.set('page', pageable.page.toString());
+        params.set('size', pageable.size.toString());
+        pageable.sort?.forEach((sort) => params.append('sort', sort));
+
+        const url = `${this.baseUrl}/search?${params.toString()}`;
+        return this.api.post<PageTransactionResponse>(url, data);
+    }
+
+    exportTransactions(data: ExportTransactionsRequest): Observable<Blob> {
+        return this.api.postBlob(`${this.baseUrl}/export`, data);
+    }
+
+    raiseDispute(id: number, data: RaiseDisputeRequest): Observable<MessageResponse> {
+        if (!id || Number.isNaN(id) || id <= 0) {
+            throw new Error('Invalid transaction ID');
+        }
+        return this.api.post<MessageResponse>(`${this.baseUrl}/${id}/dispute`, data);
+    }
+
+    cancelTransaction(id: number): Observable<MessageResponse> {
+        if (!id || Number.isNaN(id) || id <= 0) {
+            throw new Error('Invalid transaction ID');
+        }
+        return this.api.post<MessageResponse>(`${this.baseUrl}/${id}/cancel`, {});
+    }
+
+    // Health check
+    checkHealth(): Observable<string> {
+        return this.api.get<string>(`${this.baseUrl}/health`);
+    }
 }

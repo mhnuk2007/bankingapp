@@ -87,22 +87,22 @@ export interface ExternalTransferRequest {
 
 export interface ScheduledTransferRequest {
     fromAccountId: number;
-    toAccountId: number;
-    toAccountNumber: string;
+    toAccountId?: number;
+    toAccountNumber?: string;
     amount: number;
     scheduledDate: string;
-    description: string;
+    description?: string;
 }
 
 export interface RecurringTransferRequest {
     fromAccountId: number;
-    toAccountId: number;
-    toAccountNumber: string;
+    toAccountId?: number;
+    toAccountNumber?: string;
     amount: number;
     frequency: string;
     startDate: string;
-    endDate: string;
-    description: string;
+    endDate?: string;
+    description?: string;
 }
 
 export interface RecurringTransferResponse {
@@ -119,4 +119,63 @@ export interface RecurringTransferResponse {
     description: string;
     isActive: boolean;
     createdAt: string;
+}
+
+// Page Response Models
+export interface PageTransferResponse {
+    totalElements: number;
+    totalPages: number;
+    size: number;
+    content: TransferResponse[];
+    number: number;
+    sort: {
+        empty: boolean;
+        sorted: boolean;
+        unsorted: boolean;
+    };
+    first: boolean;
+    last: boolean;
+    numberOfElements: number;
+    pageable: {
+        offset: number;
+        sort: {
+            empty: boolean;
+            sorted: boolean;
+            unsorted: boolean;
+        };
+        paged: boolean;
+        pageNumber: number;
+        pageSize: number;
+        unpaged: boolean;
+    };
+    empty: boolean;
+}
+
+export interface PageRecurringTransferResponse {
+    totalElements: number;
+    totalPages: number;
+    size: number;
+    content: RecurringTransferResponse[];
+    number: number;
+    sort: {
+        empty: boolean;
+        sorted: boolean;
+        unsorted: boolean;
+    };
+    first: boolean;
+    last: boolean;
+    numberOfElements: number;
+    pageable: {
+        offset: number;
+        sort: {
+            empty: boolean;
+            sorted: boolean;
+            unsorted: boolean;
+        };
+        paged: boolean;
+        pageNumber: number;
+        pageSize: number;
+        unpaged: boolean;
+    };
+    empty: boolean;
 }

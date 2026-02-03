@@ -24,7 +24,10 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
@@ -37,11 +40,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 public class PaymentService {
+
+    private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
 
     private final PaymentRepository paymentRepository;
     private final RecurringPaymentRepository recurringPaymentRepository;
@@ -345,43 +351,65 @@ public class PaymentService {
             LocalDate endDate,
             Pageable pageable
     ) {
-        User user = getCurrentUser();
+        logger.info("Fetching payments with filters: accountId={}, type={}, category={}, status={}, startDate={}, endDate={}",
+                accountId, type, category, status, startDate, endDate);
+        try {
+            User user = getCurrentUser();
+            logger.info("Authenticated user: {}", user.getUsername());
 
-        // Build specification
-        Specification<Payment> spec = Specification.where((Specification<Payment>) null);
+            // Filter by user's accounts
+            List<Long> userAccountIds = accountRepository.findByUserId(user.getId())
+                    .stream()
+                    .map(Account::getId)
+                    .toList();
+            logger.info("Found {} accounts for user: {}", userAccountIds.size(), userAccountIds);
 
-        // Filter by user's accounts
-        List<Long> userAccountIds = accountRepository.findByUserId(user.getId())
-                .stream()
-                .map(Account::getId)
-                .toList();
-        
-        spec = spec.and((root, query, cb) -> root.get("accountId").in(userAccountIds));
+            if (userAccountIds.isEmpty()) {
+                logger.warn("User {} has no accounts. Returning empty page.", user.getUsername());
+                return new PageImpl<>(Collections.emptyList(), pageable, 0);
+            }
 
-        // Apply filters
-        if (accountId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("accountId"), accountId));
-        }
-        if (type != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("paymentType"), type));
-        }
-        if (category != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("category"), category));
-        }
-        if (status != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
-        }
-        if (startDate != null) {
-            spec = spec.and((root, query, cb) -> 
-                    cb.greaterThanOrEqualTo(root.get("createdAt"), startDate.atStartOfDay()));
-        }
-        if (endDate != null) {
-            spec = spec.and((root, query, cb) -> 
-                    cb.lessThanOrEqualTo(root.get("createdAt"), endDate.atTime(23, 59, 59)));
-        }
+            // Build specification
+            logger.debug("Building specification for payment query.");
+            Specification<Payment> spec = Specification.where((root, query, cb) -> root.get("accountId").in(userAccountIds));
 
-        Page<Payment> payments = paymentRepository.findAll(spec, pageable);
-        return payments.map(this::mapToPaymentResponse);
+            // Apply filters
+            if (accountId != null) {
+                logger.debug("Applying accountId filter: {}", accountId);
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("accountId"), accountId));
+            }
+            if (type != null) {
+                logger.debug("Applying type filter: {}", type);
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("paymentType"), type));
+            }
+            if (category != null) {
+                logger.debug("Applying category filter: {}", category);
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("category"), category));
+            }
+            if (status != null) {
+                logger.debug("Applying status filter: {}", status);
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+            }
+            if (startDate != null) {
+                logger.debug("Applying startDate filter: {}", startDate);
+                spec = spec.and((root, query, cb) ->
+                        cb.greaterThanOrEqualTo(root.get("createdAt"), startDate.atStartOfDay()));
+            }
+            if (endDate != null) {
+                logger.debug("Applying endDate filter: {}", endDate);
+                spec = spec.and((root, query, cb) ->
+                        cb.lessThanOrEqualTo(root.get("createdAt"), endDate.atTime(23, 59, 59)));
+            }
+
+            logger.info("Executing findAll payments query.");
+            Page<Payment> payments = paymentRepository.findAll(spec, pageable);
+            logger.info("Found {} payments.", payments.getTotalElements());
+
+            return payments.map(this::mapToPaymentResponse);
+        } catch (Exception e) {
+            logger.error("Error fetching payments: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
@@ -410,6 +438,10 @@ public class PaymentService {
                 .map(Account::getId)
                 .toList();
 
+        if (userAccountIds.isEmpty()) {
+            return new PageImpl<>(Collections.emptyList(), pageable, 0);
+        }
+
         Page<Payment> payments = paymentRepository
                 .findByAccountIdInAndStatusOrderByCreatedAtDesc(
                         userAccountIds, "PENDING", pageable
@@ -429,6 +461,10 @@ public class PaymentService {
                 .map(Account::getId)
                 .toList();
 
+        if (userAccountIds.isEmpty()) {
+            return new PageImpl<>(Collections.emptyList(), pageable, 0);
+        }
+
         Page<Payment> payments = paymentRepository
                 .findByAccountIdInAndStatusOrderByScheduledDateAsc(
                         userAccountIds, "SCHEDULED", pageable
@@ -447,6 +483,10 @@ public class PaymentService {
                 .stream()
                 .map(Account::getId)
                 .toList();
+
+        if (userAccountIds.isEmpty()) {
+            return new PageImpl<>(Collections.emptyList(), pageable, 0);
+        }
 
         Page<RecurringPayment> payments;
         
@@ -655,6 +695,10 @@ public class PaymentService {
                 .stream()
                 .map(Account::getId)
                 .toList();
+
+        if (userAccountIds.isEmpty()) {
+            return new PaymentStatisticsResponse(0, 0, 0, 0, BigDecimal.ZERO, 0, 0);
+        }
 
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.atTime(23, 59, 59);

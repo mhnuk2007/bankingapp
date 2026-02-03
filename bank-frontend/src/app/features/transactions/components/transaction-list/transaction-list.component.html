@@ -52,18 +52,18 @@
             </div>
             <div>
                 <span>
-                    Page {{ (store.pagination()?.page ?? 0) + 1 }} of {{ store.pagination()?.totalPages ?? 0 }}
+                    Page {{ (store.pagination()?.number ?? 0) + 1 }} of {{ store.pagination()?.totalPages ?? 0 }}
                 </span>
                 <button
                     class="ml-2 px-3 py-1 border rounded"
                     [disabled]="store.pagination()?.first"
-                    (click)="onPageChange((store.pagination()?.page ?? 0) - 1)">
+                    (click)="onPageChange((store.pagination()?.number ?? 0) - 1)">
                     Previous
                 </button>
                 <button
                     class="ml-2 px-3 py-1 border rounded"
                     [disabled]="store.pagination()?.last"
-                    (click)="onPageChange((store.pagination()?.page ?? 0) + 1)">
+                    (click)="onPageChange((store.pagination()?.number ?? 0) + 1)">
                     Next
                 </button>
             </div>

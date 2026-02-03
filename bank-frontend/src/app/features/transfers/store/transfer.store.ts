@@ -11,7 +11,6 @@ import { pipe, switchMap, tap } from 'rxjs';
 import { tapResponse } from '@ngrx/operators';
 import { TransferApiService, GetAllTransfersParams } from '../services/transfer-api.service';
 import {
-  PaginatedResponse,
   Transfer,
   TransferResponse,
   TransferStatisticsResponse,
@@ -19,31 +18,47 @@ import {
   VerifyAccountResponse,
   RecurringTransferResponse,
   TransferReceiptResponse,
-  MessageResponse,
   InternalTransferRequest,
   ExternalTransferRequest,
   ScheduledTransferRequest,
   RecurringTransferRequest,
-  VerifyAccountRequest
+  VerifyAccountRequest,
+  Pageable,
+  PageTransferResponse,
+  PageRecurringTransferResponse
 } from '@core/models';
+import { NotificationService } from '@core/services';
 
 interface TransferState {
   transfers: Transfer[];
-  pagination: PaginatedResponse<Transfer> | null;
+  pagination: PageTransferResponse | null;
+  pendingTransfers: Transfer[];
+  pendingPagination: PageTransferResponse | null;
+  scheduledTransfers: TransferResponse[];
+  scheduledPagination: PageTransferResponse | null;
+  recurringTransfers: RecurringTransferResponse[];
+  recurringPagination: PageRecurringTransferResponse | null;
   isLoading: boolean;
   error: string | null;
   filter: Omit<GetAllTransfersParams, 'pageable'>;
-  pageable: { page: number; size: number; sort?: string[] };
+  pageable: Pageable;
   selectedTransfer: Transfer | null;
   statistics: TransferStatisticsResponse | null;
   limits: TransferLimitsResponse | null;
   verificationResult: VerifyAccountResponse | null;
   receipt: TransferReceiptResponse | null;
+  lastCreatedTransferId: number | null;
 }
 
 const initialState: TransferState = {
   transfers: [],
   pagination: null,
+  pendingTransfers: [],
+  pendingPagination: null,
+  scheduledTransfers: [],
+  scheduledPagination: null,
+  recurringTransfers: [],
+  recurringPagination: null,
   isLoading: false,
   error: null,
   filter: {},
@@ -53,23 +68,25 @@ const initialState: TransferState = {
   limits: null,
   verificationResult: null,
   receipt: null,
+  lastCreatedTransferId: null,
 };
 
 export const TransferStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
-  withComputed(({ transfers, pagination, selectedTransfer, statistics, limits, verificationResult }) => ({
+  withComputed(({ pagination, selectedTransfer, statistics, limits, verificationResult }) => ({
     totalRecords: computed(() => pagination()?.totalElements ?? 0),
     totalPages: computed(() => pagination()?.totalPages ?? 0),
-    selectedTransferDetails: computed(() => selectedTransfer),
-    transferStats: computed(() => statistics),
-    transferLimits: computed(() => limits),
-    accountVerification: computed(() => verificationResult),
+    selectedTransferDetails: computed(() => selectedTransfer()),
+    transferStats: computed(() => statistics()),
+    transferLimits: computed(() => limits()),
+    accountVerification: computed(() => verificationResult()),
   })),
   withMethods(
     (
       store,
       transferApiService = inject(TransferApiService),
+      notificationService = inject(NotificationService)
     ) => ({
       // Core transfer loading
       loadTransfers: rxMethod<void>(
@@ -85,7 +102,7 @@ export const TransferStore = signalStore(
                 next: (response) => {
                   patchState(store, {
                     transfers: response.content,
-                    pagination: response,
+                    pagination: { ...response },
                     isLoading: false,
                   });
                 },
@@ -94,10 +111,83 @@ export const TransferStore = signalStore(
                     error: error.message || 'Failed to load transfers',
                     isLoading: false,
                   });
+                  notificationService.error('Failed to load transfers');
                 },
               })
             );
           })
+        )
+      ),
+
+      loadPendingTransfers: rxMethod<Pageable | undefined>(
+        pipe(
+          tap(() => patchState(store, { isLoading: true, error: null })),
+          switchMap((pageable) => transferApiService.getPendingTransfers(pageable).pipe(
+            tapResponse({
+              next: (response) => {
+                patchState(store, {
+                  pendingTransfers: response.content,
+                  pendingPagination: response,
+                  isLoading: false,
+                });
+              },
+              error: (error: Error) => {
+                patchState(store, {
+                  error: error.message || 'Failed to load pending transfers',
+                  isLoading: false,
+                });
+                notificationService.error('Failed to load pending transfers');
+              },
+            })
+          ))
+        )
+      ),
+
+      loadScheduledTransfers: rxMethod<Pageable>(
+        pipe(
+          tap(() => patchState(store, { isLoading: true, error: null })),
+          switchMap((pageable) => transferApiService.getScheduledTransfers(pageable).pipe(
+            tapResponse({
+              next: (response) => {
+                patchState(store, {
+                  scheduledTransfers: response.content,
+                  scheduledPagination: response,
+                  isLoading: false,
+                });
+              },
+              error: (error: Error) => {
+                patchState(store, {
+                  error: error.message || 'Failed to load scheduled transfers',
+                  isLoading: false,
+                });
+                notificationService.error('Failed to load scheduled transfers');
+              },
+            })
+          ))
+        )
+      ),
+
+      loadRecurringTransfers: rxMethod<Pageable>(
+        pipe(
+          tap(() => patchState(store, { isLoading: true, error: null })),
+          switchMap((pageable) => transferApiService.getRecurringTransfers(pageable).pipe(
+            tapResponse({
+              next: (response) => {
+                patchState(store, {
+                  recurringTransfers: response.content,
+                  recurringPagination: response,
+                  isLoading: false,
+                });
+              },
+              error: (error: Error) => {
+                patchState(store, {
+                  error: error.message || 'Failed to load recurring transfers',
+                  isLoading: false,
+                });
+                notificationService.error('Failed to load recurring transfers');
+              },
+            })
+          ))
         )
       ),
 
@@ -109,17 +199,19 @@ export const TransferStore = signalStore(
             transferApiService.internalTransfer(data).pipe(
               tapResponse({
                 next: (response) => {
-                  // Add new transfer to the list
                   patchState(store, (state) => ({
                     transfers: [response, ...state.transfers],
                     isLoading: false,
+                    lastCreatedTransferId: response.id,
                   }));
+                  notificationService.success('Internal transfer created successfully');
                 },
                 error: (error: Error) => {
                   patchState(store, {
                     error: error.message || 'Failed to create internal transfer',
                     isLoading: false,
                   });
+                  notificationService.error(error.message || 'Failed to create internal transfer');
                 },
               })
             )
@@ -134,17 +226,19 @@ export const TransferStore = signalStore(
             transferApiService.externalTransfer(data).pipe(
               tapResponse({
                 next: (response) => {
-                  // Add new transfer to the list
                   patchState(store, (state) => ({
                     transfers: [response, ...state.transfers],
                     isLoading: false,
+                    lastCreatedTransferId: response.id,
                   }));
+                  notificationService.success('External transfer created successfully');
                 },
                 error: (error: Error) => {
                   patchState(store, {
                     error: error.message || 'Failed to create external transfer',
                     isLoading: false,
                   });
+                  notificationService.error(error.message || 'Failed to create external transfer');
                 },
               })
             )
@@ -159,17 +253,19 @@ export const TransferStore = signalStore(
             transferApiService.scheduledTransfer(data).pipe(
               tapResponse({
                 next: (response) => {
-                  // Add new transfer to the list
                   patchState(store, (state) => ({
                     transfers: [response, ...state.transfers],
                     isLoading: false,
+                    lastCreatedTransferId: response.id,
                   }));
+                  notificationService.success('Scheduled transfer created successfully');
                 },
                 error: (error: Error) => {
                   patchState(store, {
                     error: error.message || 'Failed to create scheduled transfer',
                     isLoading: false,
                   });
+                  notificationService.error(error.message || 'Failed to create scheduled transfer');
                 },
               })
             )
@@ -184,33 +280,18 @@ export const TransferStore = signalStore(
             transferApiService.recurringTransfer(data).pipe(
               tapResponse({
                 next: (response) => {
-                  // Add new recurring transfer to the list
-                  // Convert RecurringTransferResponse to Transfer format
-                  const transfer: Transfer = {
-                    id: response.id,
-                    fromAccountId: response.fromAccountId,
-                    toAccountId: response.toAccountId,
-                    transferType: response.transferType,
-                    amount: response.amount,
-                    currency: response.currency,
-                    reference: '', // Recurring transfers don't have reference
-                    recipientName: '', // Recurring transfers don't have recipient name
-                    description: response.description,
-                    status: response.isActive ? 'ACTIVE' : 'CANCELLED',
-                    scheduledDate: response.startDate,
-                    createdAt: response.createdAt
-                  };
-
                   patchState(store, (state) => ({
-                    transfers: [transfer, ...state.transfers],
+                    recurringTransfers: [response, ...state.recurringTransfers],
                     isLoading: false,
                   }));
+                  notificationService.success('Recurring transfer created successfully');
                 },
                 error: (error: Error) => {
                   patchState(store, {
                     error: error.message || 'Failed to create recurring transfer',
                     isLoading: false,
                   });
+                  notificationService.error(error.message || 'Failed to create recurring transfer');
                 },
               })
             )
@@ -233,6 +314,7 @@ export const TransferStore = signalStore(
                     error: error.message || 'Failed to load transfer',
                     isLoading: false,
                   });
+                  notificationService.error('Failed to load transfer details');
                 },
               })
             )
@@ -254,6 +336,7 @@ export const TransferStore = signalStore(
                     error: error.message || 'Failed to load receipt',
                     isLoading: false,
                   });
+                  notificationService.error('Failed to load transfer receipt');
                 },
               })
             )
@@ -267,20 +350,21 @@ export const TransferStore = signalStore(
           switchMap((id) =>
             transferApiService.cancelTransfer(id).pipe(
               tapResponse({
-                next: (response) => {
-                  // Update the transfer status in the list
+                next: () => {
                   patchState(store, (state) => ({
                     transfers: state.transfers.map(t =>
                       t.id === id ? { ...t, status: 'CANCELLED' } : t
                     ),
                     isLoading: false,
                   }));
+                  notificationService.success('Transfer cancelled successfully');
                 },
                 error: (error: Error) => {
                   patchState(store, {
                     error: error.message || 'Failed to cancel transfer',
                     isLoading: false,
                   });
+                  notificationService.error(error.message || 'Failed to cancel transfer');
                 },
               })
             )
@@ -294,20 +378,21 @@ export const TransferStore = signalStore(
           switchMap((id) =>
             transferApiService.cancelRecurringTransfer(id).pipe(
               tapResponse({
-                next: (response) => {
-                  // Update the recurring transfer status in the list
+                next: () => {
                   patchState(store, (state) => ({
-                    transfers: state.transfers.map(t =>
-                      t.id === id ? { ...t, status: 'CANCELLED' } : t
+                    recurringTransfers: state.recurringTransfers.map(t =>
+                      t.id === id ? { ...t, isActive: false } : t
                     ),
                     isLoading: false,
                   }));
+                  notificationService.success('Recurring transfer cancelled successfully');
                 },
                 error: (error: Error) => {
                   patchState(store, {
                     error: error.message || 'Failed to cancel recurring transfer',
                     isLoading: false,
                   });
+                  notificationService.error(error.message || 'Failed to cancel recurring transfer');
                 },
               })
             )
@@ -326,6 +411,7 @@ export const TransferStore = signalStore(
                 },
                 error: (error: Error) => {
                   console.error('Failed to load statistics:', error);
+                  notificationService.error('Failed to load transfer statistics');
                 },
               })
             )
@@ -343,6 +429,7 @@ export const TransferStore = signalStore(
                 },
                 error: (error: Error) => {
                   console.error('Failed to load limits:', error);
+                  notificationService.error('Failed to load transfer limits');
                 },
               })
             )
@@ -359,12 +446,14 @@ export const TransferStore = signalStore(
               tapResponse({
                 next: (response) => {
                   patchState(store, { verificationResult: response, isLoading: false });
+                  notificationService.success('Account verified successfully');
                 },
                 error: (error: Error) => {
                   patchState(store, {
                     error: error.message || 'Failed to verify account',
                     isLoading: false,
                   });
+                  notificationService.error(error.message || 'Failed to verify account');
                 },
               })
             )
@@ -402,6 +491,9 @@ export const TransferStore = signalStore(
       },
       clearVerificationResult(): void {
         patchState(store, { verificationResult: null });
+      },
+      clearLastCreatedTransferId(): void {
+        patchState(store, { lastCreatedTransferId: null });
       }
     })
   )

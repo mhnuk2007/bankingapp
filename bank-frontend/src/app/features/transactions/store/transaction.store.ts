@@ -11,13 +11,12 @@ import { pipe, switchMap, tap } from 'rxjs';
 import { tapResponse } from '@ngrx/operators';
 import { TransactionApiService, GetAllTransactionsParams } from '../services/transaction-api.service';
 import {
-  PaginatedResponse,
+  PageTransactionResponse,
   Transaction,
   TransactionResponse,
   TransactionStatisticsResponse,
   TransactionCategoriesResponse,
   TransactionReceiptResponse,
-  MessageResponse,
   DepositRequest,
   WithdrawRequest,
   RaiseDisputeRequest,
@@ -27,7 +26,7 @@ import {
 
 interface TransactionState {
   transactions: Transaction[];
-  pagination: PaginatedResponse<Transaction> | null;
+  pagination: PageTransactionResponse | null;
   isLoading: boolean;
   error: string | null;
   filter: Omit<GetAllTransactionsParams, 'pageable'>;

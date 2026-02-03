@@ -10,15 +10,34 @@ export class ApiService {
     private readonly http = inject(HttpClient);
     private readonly baseUrl = environment.apiUrl;
 
-    get<T>(endpoint: string, params?: Record<string, unknown>): Observable<T> {
+    private buildParams(params?: Record<string, unknown>): HttpParams {
         let httpParams = new HttpParams();
-        if (params) {
-            Object.entries(params).forEach(([key, value]) => {
-                if (value !== null && value !== undefined) {
-                    httpParams = httpParams.append(key, String(value));
-                }
-            });
+        if (!params) {
+            return httpParams;
         }
+
+        Object.entries(params).forEach(([key, value]) => {
+            if (value === null || value === undefined) {
+                return;
+            }
+
+            if (Array.isArray(value)) {
+                value.forEach((entry) => {
+                    if (entry !== null && entry !== undefined) {
+                        httpParams = httpParams.append(key, String(entry));
+                    }
+                });
+                return;
+            }
+
+            httpParams = httpParams.append(key, String(value));
+        });
+
+        return httpParams;
+    }
+
+    get<T>(endpoint: string, params?: Record<string, unknown>): Observable<T> {
+        const httpParams = this.buildParams(params);
         return this.http.get<T>(`${this.baseUrl}${endpoint}`, {
             params: httpParams,
         });
@@ -41,14 +60,7 @@ export class ApiService {
     }
 
     getBlob(endpoint: string, params?: Record<string, unknown>): Observable<Blob> {
-        let httpParams = new HttpParams();
-        if (params) {
-            Object.entries(params).forEach(([key, value]) => {
-                if (value !== null && value !== undefined) {
-                    httpParams = httpParams.append(key, String(value));
-                }
-            });
-        }
+        const httpParams = this.buildParams(params);
         return this.http.get(`${this.baseUrl}${endpoint}`, {
             params: httpParams,
             responseType: 'blob',

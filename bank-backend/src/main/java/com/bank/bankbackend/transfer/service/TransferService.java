@@ -22,7 +22,10 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
@@ -34,11 +37,14 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 public class TransferService {
+
+    private static final Logger logger = LoggerFactory.getLogger(TransferService.class);
 
     private final TransferRepository transferRepository;
     private final RecurringTransferRepository recurringTransferRepository;
@@ -91,16 +97,16 @@ public class TransferService {
     public TransferResponse internalTransfer(@Valid InternalTransferRequest request) {
         User user = getCurrentUser();
 
-        // Get and verify source account
-        Account sourceAccount = accountRepository.findById(request.fromAccountId())
+        // Get and verify source account with pessimistic lock
+        Account sourceAccount = accountRepository.findByIdWithLock(request.fromAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("Source account not found"));
         
         if (!sourceAccount.getUserId().equals(user.getId())) {
             throw new IllegalArgumentException("Access denied to source account");
         }
 
-        // Get and verify destination account
-        Account destinationAccount = accountRepository.findById(request.toAccountId())
+        // Get and verify destination account with pessimistic lock
+        Account destinationAccount = accountRepository.findByIdWithLock(request.toAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("Destination account not found"));
         
         if (!destinationAccount.getUserId().equals(user.getId())) {
@@ -148,8 +154,8 @@ public class TransferService {
     public TransferResponse externalTransfer(@Valid ExternalTransferRequest request) {
         User user = getCurrentUser();
 
-        // Get and verify source account
-        Account sourceAccount = accountRepository.findById(request.fromAccountId())
+        // Get and verify source account with pessimistic lock
+        Account sourceAccount = accountRepository.findByIdWithLock(request.fromAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("Source account not found"));
         
         if (!sourceAccount.getUserId().equals(user.getId())) {
@@ -157,7 +163,12 @@ public class TransferService {
         }
 
         // Get destination account by account number
-        Account destinationAccount = accountRepository.findByAccountNumber(request.toAccountNumber())
+        // Note: We can't easily lock by non-ID field with standard JPA method, 
+        // so we fetch ID first then lock
+        Account destinationAccountTemp = accountRepository.findByAccountNumber(request.toAccountNumber())
+                .orElseThrow(() -> new IllegalArgumentException("Destination account not found"));
+        
+        Account destinationAccount = accountRepository.findByIdWithLock(destinationAccountTemp.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Destination account not found"));
 
         // Validate accounts
@@ -338,50 +349,71 @@ public class TransferService {
             LocalDate endDate,
             Pageable pageable
     ) {
-        User user = getCurrentUser();
+        logger.info("Fetching transfers with filters: accountId={}, type={}, status={}, startDate={}, endDate={}",
+                accountId, type, status, startDate, endDate);
+        try {
+            User user = getCurrentUser();
+            logger.info("Authenticated user: {}", user.getUsername());
 
-        // Build specification
-        Specification<Transfer> spec = Specification.where((Specification<Transfer>) null);
+            // Filter by user's accounts
+            List<Long> userAccountIds = accountRepository.findByUserId(user.getId())
+                    .stream()
+                    .map(Account::getId)
+                    .toList();
+            logger.info("Found {} accounts for user: {}", userAccountIds.size(), userAccountIds);
 
-        // Filter by user's accounts
-        List<Long> userAccountIds = accountRepository.findByUserId(user.getId())
-                .stream()
-                .map(Account::getId)
-                .toList();
-        
-        spec = spec.and((root, query, cb) -> 
-                cb.or(
-                        root.get("fromAccountId").in(userAccountIds),
-                        root.get("toAccountId").in(userAccountIds)
-                )
-        );
+            if (userAccountIds.isEmpty()) {
+                logger.warn("User {} has no accounts. Returning empty page.", user.getUsername());
+                return new PageImpl<>(Collections.emptyList(), pageable, 0);
+            }
 
-        // Apply filters
-        if (accountId != null) {
-            spec = spec.and((root, query, cb) -> 
+            // Build specification
+            logger.debug("Building specification for transfer query.");
+            Specification<Transfer> spec = Specification.where((root, query, cb) ->
                     cb.or(
-                            cb.equal(root.get("fromAccountId"), accountId),
-                            cb.equal(root.get("toAccountId"), accountId)
+                            root.get("fromAccountId").in(userAccountIds),
+                            root.get("toAccountId").in(userAccountIds)
                     )
             );
-        }
-        if (type != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("transferType"), type));
-        }
-        if (status != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
-        }
-        if (startDate != null) {
-            spec = spec.and((root, query, cb) -> 
-                    cb.greaterThanOrEqualTo(root.get("createdAt"), startDate.atStartOfDay()));
-        }
-        if (endDate != null) {
-            spec = spec.and((root, query, cb) -> 
-                    cb.lessThanOrEqualTo(root.get("createdAt"), endDate.atTime(23, 59, 59)));
-        }
 
-        Page<Transfer> transfers = transferRepository.findAll(spec, pageable);
-        return transfers.map(this::mapToTransferResponse);
+            // Apply filters
+            if (accountId != null) {
+                logger.debug("Applying accountId filter: {}", accountId);
+                spec = spec.and((root, query, cb) ->
+                        cb.or(
+                                cb.equal(root.get("fromAccountId"), accountId),
+                                cb.equal(root.get("toAccountId"), accountId)
+                        )
+                );
+            }
+            if (type != null) {
+                logger.debug("Applying type filter: {}", type);
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("transferType"), type));
+            }
+            if (status != null) {
+                logger.debug("Applying status filter: {}", status);
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+            }
+            if (startDate != null) {
+                logger.debug("Applying startDate filter: {}", startDate);
+                spec = spec.and((root, query, cb) ->
+                        cb.greaterThanOrEqualTo(root.get("createdAt"), startDate.atStartOfDay()));
+            }
+            if (endDate != null) {
+                logger.debug("Applying endDate filter: {}", endDate);
+                spec = spec.and((root, query, cb) ->
+                        cb.lessThanOrEqualTo(root.get("createdAt"), endDate.atTime(23, 59, 59)));
+            }
+
+            logger.info("Executing findAll transfers query.");
+            Page<Transfer> transfers = transferRepository.findAll(spec, pageable);
+            logger.info("Found {} transfers.", transfers.getTotalElements());
+
+            return transfers.map(this::mapToTransferResponse);
+        } catch (Exception e) {
+            logger.error("Error fetching transfers: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
@@ -410,6 +442,10 @@ public class TransferService {
                 .map(Account::getId)
                 .toList();
 
+        if (userAccountIds.isEmpty()) {
+            return new PageImpl<>(Collections.emptyList(), pageable, 0);
+        }
+
         Page<Transfer> transfers = transferRepository
                 .findByFromAccountIdInAndStatusOrderByCreatedAtDesc(
                         userAccountIds, "PENDING", pageable
@@ -429,6 +465,10 @@ public class TransferService {
                 .map(Account::getId)
                 .toList();
 
+        if (userAccountIds.isEmpty()) {
+            return new PageImpl<>(Collections.emptyList(), pageable, 0);
+        }
+
         Page<Transfer> transfers = transferRepository
                 .findByFromAccountIdInAndStatusOrderByScheduledDateAsc(
                         userAccountIds, "SCHEDULED", pageable
@@ -447,6 +487,10 @@ public class TransferService {
                 .stream()
                 .map(Account::getId)
                 .toList();
+
+        if (userAccountIds.isEmpty()) {
+            return new PageImpl<>(Collections.emptyList(), pageable, 0);
+        }
 
         Page<RecurringTransfer> transfers;
         
@@ -605,6 +649,10 @@ public class TransferService {
                 .map(Account::getId)
                 .toList();
 
+        if (userAccountIds.isEmpty()) {
+            return new TransferStatisticsResponse(0, 0, 0, BigDecimal.ZERO, 0, 0);
+        }
+
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.atTime(23, 59, 59);
 
@@ -727,10 +775,10 @@ public class TransferService {
 
         // Create transactions
         createTransaction(source.getId(), "TRANSFER_OUT", transfer.getAmount(), 
-                source.getCurrency(), transfer.getReference(), transfer.getDescription());
+                source.getCurrency(), transfer.getReference() + "_OUT", transfer.getDescription());
         
         createTransaction(destination.getId(), "TRANSFER_IN", transfer.getAmount(), 
-                destination.getCurrency(), transfer.getReference(), transfer.getDescription());
+                destination.getCurrency(), transfer.getReference() + "_IN", transfer.getDescription());
 
         // Get source account owner
         Account sourceAccountFull = accountRepository.findById(source.getId()).orElseThrow();
