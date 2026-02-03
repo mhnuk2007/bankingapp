@@ -13,7 +13,12 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
 
-    @Value("${spring.mail.username}")
+    // Before for real smtp
+    //@Value("${spring.mail.username}")
+    //private String fromEmail;
+
+    // After
+    @Value("${app.mail.from}")
     private String fromEmail;
 
     @Value("${app.frontend.url:http://localhost:4200}")

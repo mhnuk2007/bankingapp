@@ -2,14 +2,14 @@
 
 ![Java](https://img.shields.io/badge/Java-17%2B-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.x-green)
-![Spring Security](https://img.shields.io/badge/Spring%20Security-7.0.x-blue)
+![Spring Security](https://img.shields.io/badge/Spring%20Security-7.x-blue)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue)
-![H2](https://img.shields.io/badge/H2-Database-blue)
+![Redis](https://img.shields.io/badge/Redis-7%2B-red)
 ![JWT](https://img.shields.io/badge/JWT-Auth-orange)
 ![Maven](https://img.shields.io/badge/Maven-3.8%2B-red)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-A comprehensive, production-ready banking backend service built with Spring Boot. Provides complete RESTful APIs for modern banking operations including user management, accounts, cards, transfers, transactions, and payments with full audit logging.
+A comprehensive, production-ready banking backend service built with Spring Boot 4. Provides complete RESTful APIs for modern banking operations including user management, accounts, cards, transfers, transactions, and payments with full audit logging.
 
 ## 📋 Table of Contents
 
@@ -59,7 +59,7 @@ The Banking Application Backend is a robust, secure, and scalable system designe
 
 ### Advanced Features
 - 🔐 **Multi-Factor Authentication** (Email OTP)
-- 📧 **Notification System** (Real-time alerts)
+- 📧 **Notification System** (Real-time alerts via RabbitMQ)
 - 📈 **Statistics & Analytics** (Account, transaction, transfer stats)
 - 📄 **Statement Generation** (PDF/CSV export)
 - 🔄 **Recurring Operations** (Transfers, payments)
@@ -83,7 +83,7 @@ The application follows a **layered architecture** with clear separation of conc
 │  (Repositories - JPA/Hibernate)         │
 ├─────────────────────────────────────────┤
 │          Database Layer                 │
-│    (PostgreSQL/H2)                      │
+│    (PostgreSQL/Redis)                   │
 └─────────────────────────────────────────┘
 ```
 
@@ -245,27 +245,21 @@ All API responses follow a consistent JSON structure.
 ### Prerequisites
 - **Java 17+**
 - **Maven 3.8+**
-- **Database** (PostgreSQL 15+ or H2)
-- **SMTP Server** (for email notifications)
+- **Database** (PostgreSQL 15+ and Redis 7+)
+- **SMTP Server** (or MailHog for testing)
 
 ### Installation & Setup
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url> && cd bank-backend
+   git clone https://github.com/mhnuk2007/bankingapp.git
+   cd bankingapp/bank-backend
    ```
 
 2. **Configure Secrets:**
-   For security, it is recommended to use environment variables for secrets. Create a `.env` file in the root directory:
-   ```
-   DB_URL=jdbc:postgresql://localhost:5432/bankdb
-   DB_USER=your_username
-   DB_PASS=your_password
-   MAIL_USER=your_email@gmail.com
-   MAIL_PASS=your_app_password
-   JWT_SECRET=your-very-secure-secret-key-min-256-bits
-   ```
-   Then, update `application.properties` to read these variables.
+   For security, it is recommended to use environment variables for secrets. Create a `.env` file in the root directory (see `.env.example`).
+   
+   Alternatively, update `src/main/resources/application.properties` directly for local development.
 
 3. **Build the project:**
    ```bash
@@ -292,11 +286,11 @@ Tests are configured to run against an in-memory H2 database to avoid interferin
 
 ## 🛠️ Technology Stack
 
-- **Backend:** Spring Boot 4.0.x, Spring Security 7.0.x
+- **Backend:** Spring Boot 4.0.x, Spring Framework 7.0.x
 - **Data:** Spring Data JPA, Hibernate
-- **Database:** PostgreSQL, H2 (for testing)
-- **Security:** JWT, BCrypt
-- **Utilities:** Lombok, Jackson, JavaMail
+- **Database:** PostgreSQL, Redis (Cache)
+- **Security:** Spring Security 7.x, JWT, BCrypt
+- **Utilities:** Lombok, MapStruct, Resilience4j
 - **Build:** Maven
 
 ---
@@ -322,17 +316,11 @@ Contributions are welcome! Please open an issue or submit a pull request.
 
 This project is licensed under the MIT License.
 
----
-
-## 👤 Author
+## 👨‍💻 Author
 
 **Mohan Lal**
 
-- **GitHub:** [@mhnuk2007](https://github.com/mhnuk2007)
-- **LinkedIn:** [linkedin.com/in/mhnuk2007](https://linkedin.com/in/mhnuk2007)
-- **Portfolio:** [mhnuk2007.github.io](https://mhnuk2007.github.io/)
-- **Netlify:** [mhnuk2007.netlify.app](https://mhnuk2007.netlify.app)
-
----
-
-**Ready for production deployment!** 🚀🏦
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mhnuk2007/)
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mhnuk2007)
+[![Portfolio](https://img.shields.io/badge/Portfolio-FF5722?style=for-the-badge&logo=html5&logoColor=white)](https://mhnuk2007.github.io/)
+[![Netlify](https://img.shields.io/badge/Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white)](https://mhnuk2007.netlify.app)

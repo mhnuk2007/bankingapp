@@ -21,7 +21,7 @@ public class JwtService {
     @Value("${jwt.secret}")
     private String secretKey;
 
-    @Value("${jwt.expiration:900000}") // 15 minutes in milliseconds (fixed: was 900, should be 900000)
+    @Value("${jwt.expiration:3600000}") // 60 minutes in milliseconds (fixed: was 900, should be 900000)
     private long jwtExpiration;
 
     @Value("${jwt.refresh-expiration:604800000}") // 7 days in milliseconds

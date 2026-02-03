@@ -1,24 +1,25 @@
 # Enterprise Banking Application
 
-This is a comprehensive, full-stack enterprise banking solution. It features a robust Spring Boot 3 backend with a Microservices-ready architecture and a modern Angular 21 frontend utilizing Signals for state management. The project demonstrates a complete banking workflow including 2FA security, detailed transaction auditing, and real-time notifications.
+This is a comprehensive, full-stack enterprise banking solution. It features a robust Spring Boot 4 backend with a Microservices-ready architecture and a modern Angular 21 frontend utilizing Signals for state management. The project demonstrates a complete banking workflow including 2FA security, detailed transaction auditing, and real-time notifications.
 
 ## 📂 Project Structure
 
 ```
 banking-app/
-├── bank-backend/         # Spring Boot 3.2 / Java 17 API
+├── bank-backend/         # Spring Boot 4.0 / Java 17 API
 ├── bank-frontend/        # Angular 21 / Tailwind CSS Client
-├── docker/               # Docker Compose and Infrastructure
+├── docker-compose.yml    # Docker Compose Configuration
+├── .env.example          # Environment Variables Example
 └── README.md             # Project Documentation
 ```
 
 ## 🚀 Technology Stack
 
 ### Backend (bank-backend)
-*   **Framework**: Spring Boot 3.2 / Spring Framework 6.1
+*   **Framework**: Spring Boot 4.0 / Spring Framework 7.0
 *   **Language**: Java 17 (LTS)
 *   **Database**: PostgreSQL 15+ (Primary), Redis (Cache)
-*   **Security**: Spring Security 6.x, JWT (JJWT 0.12.5), 2FA
+*   **Security**: Spring Security 7.x, JWT (JJWT 0.12.5), 2FA
 *   **Messaging**: RabbitMQ (Spring AMQP)
 *   **Tools**: Lombok, MapStruct, Liquibase, Resilience4j, Micrometer, SpringDoc OpenAPI
 
@@ -71,20 +72,30 @@ banking-app/
 ### 🐳 Quick Start (Docker)
 The easiest way to run the full stack (DB, Redis, RabbitMQ, Backend, Frontend) is via Docker Compose.
 
-Navigate to the `docker` directory:
-```bash
-cd docker
-```
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/mhnuk2007/bankingapp.git
+    cd bankingapp
+    ```
 
-Start the services:
-```bash
-docker-compose up -d
-```
+2.  **Configure Environment Variables:**
+    Copy the example environment file to `.env`:
+    ```bash
+    cp .env.example .env
+    ```
+    *Note: You can adjust the settings in `.env` if needed, but the defaults should work out of the box.*
 
-Access the application:
-*   Frontend: `http://localhost:4200`
-*   Backend API: `http://localhost:8080/api/v1`
-*   Swagger Docs: `http://localhost:8080/swagger-ui.html`
+3.  **Start the services:**
+    ```bash
+    docker-compose up -d --build
+    ```
+    *Note: If you encounter database errors, try running `docker-compose down -v` first to clear any old volumes.*
+
+4.  **Access the application:**
+    *   **Frontend:** `http://localhost:4200`
+    *   **Backend API:** `http://localhost:8080/api/v1`
+    *   **Swagger Docs:** `http://localhost:8080/swagger-ui.html`
+    *   **MailHog (Email Testing):** `http://localhost:8025`
 
 ### 💻 Manual Setup
 
@@ -94,7 +105,7 @@ Navigate to the backend directory:
 cd bank-backend
 ```
 
-Configure database connection in `src/main/resources/application.yml` (if not using defaults).
+Configure database connection in `src/main/resources/application.properties` (if not using defaults).
 Build the project:
 ```bash
 mvn clean install
@@ -117,18 +128,22 @@ npm install
 ```
 
 Start the development server:
+```bash
 ng serve
+```
+
+Open browser at `http://localhost:4200/`.
 
 ## ⚙️ Configuration
-The backend application is configured via `application.yml`. Key environment variables you may need to set in production:
+The application is configured via environment variables. See `.env.example` for all available options.
 
-| Variable        | Description                       | Default       |
-| :-------------- | :-------------------------------- | :------------ |
-| `DB_HOST`       | PostgreSQL Host                   | `localhost`   |
-| `DB_PORT`       | PostgreSQL Port                   | `5432`        |
-| `REDIS_HOST`    | Redis Host                        | `localhost`   |
-| `RABBITMQ_HOST` | RabbitMQ Host                     | `localhost`   |
-| `JWT_SECRET`    | Secret key for token generation   | (See config)  |
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `SERVER_PORT` | Backend Port | `8080` |
+| `DB_URL` | Database Connection URL | `jdbc:postgresql://db:5432/bankappdb` |
+| `DB_USERNAME` | Database Username | `postgres` |
+| `DB_PASSWORD` | Database Password | `postgres` |
+| `APP_FRONTEND_URL` | Frontend URL (for CORS) | `http://localhost:4200` |
 
 ## 🧪 Testing
 
@@ -147,3 +162,12 @@ Contributions are welcome! Please fork the repository and create a pull request 
 
 ## 📄 License
 This project is open-source and available under the MIT License.
+
+## 👨‍💻 Author
+
+**Mohan Lal**
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mhnuk2007/)
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mhnuk2007)
+[![Portfolio](https://img.shields.io/badge/Portfolio-FF5722?style=for-the-badge&logo=html5&logoColor=white)](https://mhnuk2007.github.io/)
+[![Netlify](https://img.shields.io/badge/Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white)](https://mhnuk2007.netlify.app)
