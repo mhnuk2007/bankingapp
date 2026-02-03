@@ -14,6 +14,8 @@ Thumbs.db
 # AI / Editor tooling
 .cursor/
 .gemini/
+.codex/
+.cline/
 
 ############################
 # Logs
